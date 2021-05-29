@@ -325,20 +325,8 @@ async def main():
         else:
             write_func()
 
-            if args.graph or args.save:
-                plot_data(data, full_file_path if args.save else None)
-
-
-def plot_data(data: dict, file_path: Union[None, pathlib.Path]):
-    """
-    Separated function from main providing plot feature.
-
-    :param data: accumulated data
-    :param file_path: path for PDF save, leave it None to disable it.
-    """
-
-    logger.info("Preparing graph.")
-    plot_main(data, file_path)
+            logger.info("Writing graph.")
+            plot_main(data, full_file_path)
 
 
 if __name__ == "__main__":
@@ -353,19 +341,6 @@ if __name__ == "__main__":
         "--verbose",
         action="store_true",
         help="Enables debug logging.",
-    )
-    option = parser.add_mutually_exclusive_group()
-    option.add_argument(
-        "-g",
-        "--graph",
-        action="store_true",
-        help="Show plot at the end of the program.",
-    )
-    option.add_argument(
-        "-s",
-        "--save",
-        action="store_true",
-        help="Save plot as pdf. Will use same directory and name of json file created.",
     )
     parser.add_argument(
         "-o",
@@ -382,14 +357,6 @@ if __name__ == "__main__":
         type=int,
         default=5,
         help="Changes interval between polls. Default is 5.",
-    )
-    parser.add_argument(
-        "-f",
-        "--flush",
-        metavar="INTERVAL",
-        type=int,
-        default=120,
-        help="Interval between write flush. Flushes very Nth poll. Default is 120.",
     )
     parser.add_argument(
         "-a",

@@ -1,16 +1,20 @@
-import logging
 import argparse
 import asyncio
+import pathlib
 
 from discord.ext import commands
-from discord import DiscordException, Embed
+from discord import DiscordException, Embed, File
 from discord.errors import HTTPException
-
 from loguru import logger
 
 
 end_signature = "\u200a\u200a\u200a"
 end_signature_encoded = end_signature.encode("utf8")
+record_path = (
+    pathlib.Path(__file__)
+    .parent.joinpath("YoutubeStreamStatLogger/Records/Cyan Nyan/")
+    .absolute()
+)
 
 
 def encode(string: str):
@@ -33,22 +37,29 @@ def assign_actions(bot):
         if not any(guild.id == args.guild_id for guild in bot.guilds):
             logger.critical("Bot is not connected to given server ID %s", args.guild_id)
 
-            raise DiscordException(f"Bot is not connected to given server ID {args.guild_id}")
+            raise DiscordException(
+                f"Bot is not connected to given server ID {args.guild_id}"
+            )
 
     # --------------------------------------
 
-    linux_info_command = '''/etc/update-motd.d/00-header && /etc/update-motd.d/90-updates-available'''
+    linux_info_command = (
+        """/etc/update-motd.d/00-header && /etc/update-motd.d/90-updates-available"""
+    )
 
     shell_field_commands = {
         "CPU / RAM": '''echo "CPU `LC_ALL=C top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1}'`% RAM `free -m | awk '/Mem:/ { printf("%3.1f%%", $3/$2*100) }'`"''',
-        "CPU Model": '''cat /proc/cpuinfo | awk -F : '/model name/ {print $2}' | head -1 | xargs''',
-        "Disk usage": '''df -h | grep -e /dev/sd -e md'''
+        "CPU Model": """cat /proc/cpuinfo | awk -F : '/model name/ {print $2}' | head -1 | xargs""",
+        "Disk usage": """df -h | grep -e /dev/sd -e md""",
     }
 
     @bot.command(name="sysinfo")
     async def system_information(context: commands.Context):
-        description_proc = await asyncio.create_subprocess_shell(linux_info_command, stdout=asyncio.subprocess.PIPE,
-                                                                 stderr=asyncio.subprocess.PIPE)
+        description_proc = await asyncio.create_subprocess_shell(
+            linux_info_command,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
         stdout, _ = await description_proc.communicate()
 
         description = stdout.decode(codec)
@@ -56,8 +67,9 @@ def assign_actions(bot):
         embed = Embed(title="Brief System information", description=description)
 
         for key, val in shell_field_commands.items():
-            proc = await asyncio.create_subprocess_shell(val, stdout=asyncio.subprocess.PIPE,
-                                                         stderr=asyncio.subprocess.PIPE)
+            proc = await asyncio.create_subprocess_shell(
+                val, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
             stdout, _ = await proc.communicate()
 
             embed.add_field(name=key, value=stdout.decode(codec), inline=True)
@@ -76,7 +88,8 @@ def assign_actions(bot):
     async def run_literally(context: commands.Context):
 
         await context.send(
-            "https://cdn.discordapp.com/attachments/783069235999014912/840531297499480084/ezgif.com-gif-maker.gif")
+            "https://cdn.discordapp.com/attachments/783069235999014912/840531297499480084/ezgif.com-gif-maker.gif"
+        )
 
     # --------------------------------------
 
@@ -102,11 +115,17 @@ def assign_actions(bot):
 
         code_ = code_format.format(code)
 
-        logger.info("Received code from %s by %s - detail: %s", context.channel, context.author, code_)
+        logger.info(
+            "Received code from %s by %s - detail: %s",
+            context.channel,
+            context.author,
+            code_,
+        )
 
         try:
-            proc = await asyncio.create_subprocess_shell(code_, stdout=asyncio.subprocess.PIPE,
-                                                         stderr=asyncio.subprocess.PIPE)
+            proc = await asyncio.create_subprocess_shell(
+                code_, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+            )
         except Exception as err_:
             await context.reply(msg_format.format(err_))
             return
@@ -114,7 +133,9 @@ def assign_actions(bot):
         try:
             stdout, stderr = await proc.communicate()
         except Exception as err_:
-            await context.reply(f"{msg_format.format(err_)}\n\nExited with return code {proc.returncode}")
+            await context.reply(
+                f"{msg_format.format(err_)}\n\nExited with return code {proc.returncode}"
+            )
             return
 
         output = []
@@ -134,7 +155,9 @@ def assign_actions(bot):
         except HTTPException as err_:
 
             if len(message) + len(exit_msg) + (len(msg_format) - 2) >= 2000:
-                fitted = message[:2000 - len(overflow_msg) - len(exit_msg) - (len(msg_format) - 2)]
+                fitted = message[
+                    : 2000 - len(overflow_msg) - len(exit_msg) - (len(msg_format) - 2)
+                ]
                 cut_target = fitted.split("\n")[-1]
                 message = fitted.removesuffix(cut_target) + overflow_msg
 
@@ -146,8 +169,35 @@ def assign_actions(bot):
 
     # --------------------------------------
 
+    @bot.command(
+        name="streamgraph",
+        help="Get stream's public statistics graph. Due to check interval and http errors, "
+             "file may either be incomplete or not graphed at all.",
+    )
+    async def get_last_stream_image(context: commands.Context, index=0):
 
-if __name__ == '__main__':
+        files = [f for f in record_path.iterdir() if f.suffix == ".png"]
+
+        sorted_files = sorted(files, key=lambda x: x.name)
+
+        try:
+            target = sorted_files[index]
+        except IndexError:
+            index = len(sorted_files) - 1
+            target = sorted_files[index]
+
+        link = f"https://youtu.be/{target.stem.split('_', 2)[-1]}"
+
+        file = File(target)
+
+        await context.send(
+            f"{index} out of {len(sorted_files)} records. Link: {link}", file=file
+        )
+
+    # --------------------------------------
+
+
+if __name__ == "__main__":
 
     # Parsing start
 
@@ -158,7 +208,9 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    bot_ = commands.Bot(command_prefix="/")
+    bot_ = commands.Bot(
+        command_prefix="/", description="Bot for cyan's robot playground!"
+    )
     assign_actions(bot_)
 
     try:

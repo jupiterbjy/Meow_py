@@ -227,12 +227,6 @@ if __name__ == "__main__":
         default=None,
         help="Optional Google Data API key",
     )
-    # parser.add_argument(
-    #     "-o",
-    #     "--output-log",
-    #     action="store_true",
-    #     help="Custom path to store log file. Will use './Logs' if not specified.",
-    # )
 
     args = parser.parse_args()
 

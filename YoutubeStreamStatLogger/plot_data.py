@@ -9,7 +9,6 @@ import pathlib
 import json
 import argparse
 from array import array
-from typing import Union
 
 from matplotlib import pyplot
 from matplotlib.font_manager import FontProperties
@@ -46,7 +45,7 @@ def calculate_delta(source) -> array:
         return array("i", (0 for _ in range(len(source))))
 
 
-def plot_main(mapping, save_as_img: Union[None, pathlib.Path] = None):
+def plot_main(mapping, save_as_img: pathlib.Path):
     """
     Dirty main. Check this dirt out, it's extra dirty.
     Plots giving data.
@@ -119,11 +118,9 @@ def plot_main(mapping, save_as_img: Union[None, pathlib.Path] = None):
 
     figure.tight_layout()
 
-    if save_as_img is not None:
-        save_file = save_as_img.parent.joinpath(save_as_img.stem + ".pdf")
+    for extension in (".pdf", ".png"):
+        save_file = save_as_img.parent.joinpath(save_as_img.stem + extension)
         pyplot.savefig(save_file)
-    else:
-        pyplot.show()
 
 
 def main():
