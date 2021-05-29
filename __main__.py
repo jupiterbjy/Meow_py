@@ -5,9 +5,13 @@ import asyncio
 import pathlib
 
 from discord.ext import commands
-from discord import DiscordException, Embed, File
+from discord import DiscordException, Embed, File, Colour
 from discord.errors import HTTPException
 from loguru import logger
+from traceback_with_variables import activate_by_import
+
+
+assert activate_by_import
 
 
 end_signature = "\u200a\u200a\u200a"
@@ -55,8 +59,11 @@ def assign_actions(bot):
         "Disk usage": """df -h | grep -e /dev/sd -e md""",
     }
 
-    @bot.command(name="sysinfo")
+    @bot.command(name="sysinfo", help="Get general system info. But why?")
     async def system_information(context: commands.Context):
+
+        logger.debug("Call on sysinfo.")
+
         description_proc = await asyncio.create_subprocess_shell(
             linux_info_command,
             stdout=asyncio.subprocess.PIPE,
@@ -80,14 +87,10 @@ def assign_actions(bot):
 
     # --------------------------------------
 
-    @system_information.error
-    async def system_info_error(context: commands.Context, error):
-        await context.reply(f"```\n{error}\n```")
-
-    # --------------------------------------
-
     @bot.command(name="run", help="Run cyan run!")
     async def run_literally(context: commands.Context):
+
+        logger.debug("Call on run")
 
         await context.send(
             "https://cdn.discordapp.com/attachments/783069235999014912/840531297499480084/ezgif.com-gif-maker.gif"
@@ -176,11 +179,13 @@ def assign_actions(bot):
         help="Get stream's public statistics graph. Due to check interval and http errors, "
              "file may either be incomplete or not graphed at all.",
     )
-    async def get_last_stream_image(context: commands.Context, index=0):
+    async def get_stream_image(context: commands.Context, index: int = 0):
+
+        logger.debug("Call on stream, index {}.", index)
 
         files = [f for f in record_path.iterdir() if f.suffix == ".png"]
 
-        sorted_files = sorted(files, key=lambda x: x.name)
+        sorted_files = sorted(files, reverse=True)
 
         try:
             target = sorted_files[index]
@@ -188,13 +193,23 @@ def assign_actions(bot):
             index = len(sorted_files) - 1
             target = sorted_files[index]
 
-        link = f"https://youtu.be/{target.stem.split('_', 2)[-1]}"
+        date, timestamp, video_id = target.stem.split('_', 2)
+        link = f"https://youtu.be/{video_id}"
 
-        file = File(target)
+        with open(target, "rb") as fp:
+            file = File(fp, f"{timestamp}.png")
 
-        await context.send(
-            f"{index} out of {len(sorted_files)} records. Link: {link}", file=file
-        )
+        embed = Embed(title=f"Stream at {timestamp} epoch time", description=link, colour=Colour.from_rgb(24, 255, 255))
+        embed.set_image(url=f"attachment://{timestamp}.png")
+        embed.set_thumbnail(url=f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg")
+
+        await context.reply(file=file, embed=embed)
+
+    # --------------------------------------
+
+    @get_stream_image.error
+    async def get_stream_image_error(context: commands.Context, error):
+        await context.reply(f"You passed wrong parameter! Value should be integer!")
 
     # --------------------------------------
 
