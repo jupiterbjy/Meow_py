@@ -122,6 +122,8 @@ def plot_main(mapping, save_as_img: pathlib.Path):
         save_file = save_as_img.parent.joinpath(save_as_img.stem + extension)
         pyplot.savefig(save_file)
 
+    pyplot.close(figure)
+
 
 def main():
     """
