@@ -1,0 +1,66 @@
+[AutoRecord][INFO] 2021-04-23 00:05:44,734 <main_loop_gen> Sleeping until next check at 2021-04-23 04:05:44.733869
+[AutoRecord][INFO] 2021-04-23 00:06:18,548 <main_loop_gen> Sleeping until next check at 2021-04-23 04:06:18.547601
+[AutoRecord][INFO] 2021-04-23 00:07:00,554 <main_loop_gen> Sleeping until next check at 2021-04-23 04:07:00.553988
+[AutoRecord][INFO] 2021-04-23 00:28:31,294 <fetch_live> Found [] upcoming stream(s), [] live/imminent stream(s)
+[AutoRecord][INFO] 2021-04-23 00:28:31,294 <fetch_live> Found [] upcoming stream(s), [] live/imminent stream(s)
+[AutoRecord][INFO] 2021-04-23 00:28:31,294 <main_loop_gen> Sleeping until next check at 2021-04-23 04:28:31.294235
+[AutoRecord][INFO] 2021-04-23 09:59:34,806 <fetch_live> Found [] upcoming stream(s), [] live/imminent stream(s)
+[AutoRecord][INFO] 2021-04-23 09:59:34,806 <main_loop_gen> Sleeping until next check at 2021-04-23 13:59:34.805598
+[AutoRecord][DEBUG] 2021-04-23 10:06:11,965 <fetch_live> Checking channel Akatsuki Yume UCwKirAYzzWUQRTC-aAB-aRQ
+[AutoRecord][DEBUG] 2021-04-23 10:06:12,270 <fetch_live> Checking channel Cyan Nyan UC9wbdkwvYVSgKtOZ3Oov98g
+[AutoRecord][DEBUG] 2021-04-23 10:06:12,593 <fetch_live> Checking channel Kujo Mashiro UCrD1uEL4nbp3LkPfowpCydA
+[AutoRecord][INFO] 2021-04-23 10:06:12,593 <fetch_live> Found 0 upcoming stream(s), 2 live/imminent stream(s)
+[AutoRecord][INFO] 2021-04-23 10:06:12,594 <main> Starting task M6dIu_6VTMY for channel Akatsuki Yume
+[AutoRecord][INFO] 2021-04-23 10:06:12,594 <main> Starting task o-3Z4py6Sm4 for channel Cyan Nyan
+[AutoRecord][INFO] 2021-04-23 10:06:12,594 <main_loop_gen> Sleeping until next check at 2021-04-23 14:06:11.545662
+[AutoRecord][DEBUG] 2021-04-23 10:07:32,419 <fetch_live> Checking channel Akatsuki Yume UCwKirAYzzWUQRTC-aAB-aRQ
+[AutoRecord][DEBUG] 2021-04-23 10:07:32,690 <fetch_live> Checking channel Cyan Nyan UC9wbdkwvYVSgKtOZ3Oov98g
+[AutoRecord][DEBUG] 2021-04-23 10:07:32,962 <fetch_live> Checking channel Kujo Mashiro UCrD1uEL4nbp3LkPfowpCydA
+[AutoRecord][INFO] 2021-04-23 10:07:32,962 <fetch_live> Found 0 upcoming stream(s), 2 live/imminent stream(s)
+[AutoRecord][INFO] 2021-04-23 10:07:32,962 <main> Starting task M6dIu_6VTMY for channel Akatsuki Yume
+[AutoRecord][INFO] 2021-04-23 10:07:32,962 <main> Starting task o-3Z4py6Sm4 for channel Cyan Nyan
+[AutoRecord][INFO] 2021-04-23 10:07:32,963 <main_loop_gen> Sleeping until next check at 2021-04-23 14:07:31.970810
+[AutoRecord][CRITICAL] 2021-04-23 10:07:33,274 <task> Subprocess M6dIu_6VTMY failed.
+[AutoRecord][CRITICAL] 2021-04-23 10:07:33,278 <task> Subprocess o-3Z4py6Sm4 failed.
+[AutoRecord][DEBUG] 2021-04-23 10:08:56,475 <fetch_live> Checking channel Akatsuki Yume UCwKirAYzzWUQRTC-aAB-aRQ
+[AutoRecord][DEBUG] 2021-04-23 10:08:56,766 <fetch_live> Checking channel Cyan Nyan UC9wbdkwvYVSgKtOZ3Oov98g
+[AutoRecord][DEBUG] 2021-04-23 10:08:57,018 <fetch_live> Checking channel Kujo Mashiro UCrD1uEL4nbp3LkPfowpCydA
+[AutoRecord][INFO] 2021-04-23 10:08:57,018 <fetch_live> Found 0 upcoming stream(s), 2 live/imminent stream(s)
+[AutoRecord][INFO] 2021-04-23 10:08:57,018 <main> Starting task M6dIu_6VTMY for channel Akatsuki Yume
+[AutoRecord][INFO] 2021-04-23 10:08:57,018 <main> Starting task o-3Z4py6Sm4 for channel Cyan Nyan
+[AutoRecord][INFO] 2021-04-23 10:08:57,018 <main_loop_gen> Sleeping until next check at 2021-04-23 14:08:56.076643
+[AutoRecord][DEBUG] 2021-04-23 10:09:15,272 <fetch_live> Checking channel Akatsuki Yume UCwKirAYzzWUQRTC-aAB-aRQ
+[AutoRecord][DEBUG] 2021-04-23 10:09:15,563 <fetch_live> Checking channel Cyan Nyan UC9wbdkwvYVSgKtOZ3Oov98g
+[AutoRecord][DEBUG] 2021-04-23 10:09:15,843 <fetch_live> Checking channel Kujo Mashiro UCrD1uEL4nbp3LkPfowpCydA
+[AutoRecord][INFO] 2021-04-23 10:09:15,843 <fetch_live> Found 0 upcoming stream(s), 2 live/imminent stream(s)
+[AutoRecord][INFO] 2021-04-23 10:09:15,844 <main> Starting task M6dIu_6VTMY for channel Akatsuki Yume
+[AutoRecord][INFO] 2021-04-23 10:09:15,844 <main> Starting task o-3Z4py6Sm4 for channel Cyan Nyan
+[AutoRecord][INFO] 2021-04-23 10:09:15,844 <main_loop_gen> Sleeping until next check at 2021-04-23 14:09:14.828038
+[AutoRecord][CRITICAL] 2021-04-23 10:09:16,743 <task> Subprocess M6dIu_6VTMY failed.
+[AutoRecord][CRITICAL] 2021-04-23 10:09:16,744 <task> Subprocess o-3Z4py6Sm4 failed.
+[AutoRecord][DEBUG] 2021-04-23 10:09:47,574 <fetch_live> Checking channel Akatsuki Yume UCwKirAYzzWUQRTC-aAB-aRQ
+[AutoRecord][DEBUG] 2021-04-23 10:09:47,864 <fetch_live> Checking channel Cyan Nyan UC9wbdkwvYVSgKtOZ3Oov98g
+[AutoRecord][DEBUG] 2021-04-23 10:09:48,132 <fetch_live> Checking channel Kujo Mashiro UCrD1uEL4nbp3LkPfowpCydA
+[AutoRecord][INFO] 2021-04-23 10:09:48,132 <fetch_live> Found 0 upcoming stream(s), 2 live/imminent stream(s)
+[AutoRecord][INFO] 2021-04-23 10:09:48,133 <main> Starting task M6dIu_6VTMY for channel Akatsuki Yume
+[AutoRecord][INFO] 2021-04-23 10:09:48,133 <main> Starting task o-3Z4py6Sm4 for channel Cyan Nyan
+[AutoRecord][INFO] 2021-04-23 10:09:48,133 <main_loop_gen> Sleeping until next check at 2021-04-23 14:09:47.171990
+[AutoRecord][CRITICAL] 2021-04-23 10:09:48,919 <task> Subprocess M6dIu_6VTMY failed.
+[AutoRecord][CRITICAL] 2021-04-23 10:09:48,978 <task> Subprocess o-3Z4py6Sm4 failed.
+[AutoRecord][DEBUG] 2021-04-23 10:10:20,297 <fetch_live> Checking channel Akatsuki Yume UCwKirAYzzWUQRTC-aAB-aRQ
+[AutoRecord][DEBUG] 2021-04-23 10:10:20,566 <fetch_live> Checking channel Cyan Nyan UC9wbdkwvYVSgKtOZ3Oov98g
+[AutoRecord][DEBUG] 2021-04-23 10:10:20,832 <fetch_live> Checking channel Kujo Mashiro UCrD1uEL4nbp3LkPfowpCydA
+[AutoRecord][INFO] 2021-04-23 10:10:20,832 <fetch_live> Found 0 upcoming stream(s), 2 live/imminent stream(s)
+[AutoRecord][INFO] 2021-04-23 10:10:20,832 <main> Starting task M6dIu_6VTMY for channel Akatsuki Yume
+[AutoRecord][INFO] 2021-04-23 10:10:20,832 <main> Starting task o-3Z4py6Sm4 for channel Cyan Nyan
+[AutoRecord][INFO] 2021-04-23 10:10:20,832 <main_loop_gen> Sleeping until next check at 2021-04-23 14:10:19.887354
+[AutoRecord][CRITICAL] 2021-04-23 10:10:21,650 <task> Subprocess M6dIu_6VTMY failed.
+[AutoRecord][CRITICAL] 2021-04-23 10:10:21,650 <task> Subprocess o-3Z4py6Sm4 failed.
+[AutoRecord][DEBUG] 2021-04-23 10:13:10,048 <fetch_live> Checking channel Akatsuki Yume UCwKirAYzzWUQRTC-aAB-aRQ
+[AutoRecord][DEBUG] 2021-04-23 10:13:10,300 <fetch_live> Checking channel Cyan Nyan UC9wbdkwvYVSgKtOZ3Oov98g
+[AutoRecord][DEBUG] 2021-04-23 10:13:10,610 <fetch_live> Checking channel Kujo Mashiro UCrD1uEL4nbp3LkPfowpCydA
+[AutoRecord][INFO] 2021-04-23 10:13:10,610 <fetch_live> Found 0 upcoming stream(s), 2 live/imminent stream(s)
+[AutoRecord][INFO] 2021-04-23 10:13:10,610 <main> Starting task M6dIu_6VTMY for channel Akatsuki Yume
+[AutoRecord][INFO] 2021-04-23 10:13:10,611 <main> Starting task o-3Z4py6Sm4 for channel Cyan Nyan
+[AutoRecord][INFO] 2021-04-23 10:13:10,611 <main_loop_gen> Sleeping until next check at 2021-04-23 14:13:09.613138
+[AutoRecord][DEBUG] 2021-04-23 13:32:02,727 <fetch_live> Checking channel Akatsuki Yume UCwKirAYzzWUQRTC-aAB-aRQ

@@ -6,7 +6,8 @@ from discord.ext import commands
 from discord import DiscordException, Embed
 from discord.errors import HTTPException
 
-from log_initalizer import init_logger
+from loguru import logger
+
 
 end_signature = "\u200a\u200a\u200a"
 end_signature_encoded = end_signature.encode("utf8")
@@ -148,8 +149,6 @@ def assign_actions(bot):
 
 if __name__ == '__main__':
 
-    logger = logging.getLogger("Meow.py")
-
     # Parsing start
 
     parser = argparse.ArgumentParser()
@@ -158,8 +157,6 @@ if __name__ == '__main__':
     parser.add_argument("guild_id", type=int, help="Server's ID")
 
     args = parser.parse_args()
-
-    init_logger(logger, True)
 
     bot_ = commands.Bot(command_prefix="/")
     assign_actions(bot_)
