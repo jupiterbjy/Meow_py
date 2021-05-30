@@ -5,8 +5,7 @@ import asyncio
 import pathlib
 
 from discord.ext import commands
-from discord import DiscordException, Embed, File, Colour
-from discord.errors import HTTPException
+from discord import DiscordException, Embed, File, Colour, Game
 from loguru import logger
 from traceback_with_variables import activate_by_import
 
@@ -35,9 +34,21 @@ def decode(byte_string: bytes):
     return decoded.removeprefix(end_signature)
 
 
-def assign_actions(bot):
+def assign_actions(bot: commands.bot):
+
+    first_setup_done = False
+
+    async def first_call():
+
+        message = "Meow World, Nyanstaree~🌟 I am a simple python bot you can play with. Type /help for usage!"
+
+        await bot.change_presence(activity=Game(name="Cuddling Python"))
+        await bot.get_channel(args.channel_id).send(message)
+
     @bot.event
     async def on_ready():
+        nonlocal first_setup_done
+
         print(f"{bot.user} connected.")
 
         if not any(guild.id == args.guild_id for guild in bot.guilds):
@@ -46,6 +57,11 @@ def assign_actions(bot):
             raise DiscordException(
                 f"Bot is not connected to given server ID {args.guild_id}"
             )
+
+        if not first_setup_done:
+            first_setup_done = True
+
+            await first_call()
 
     # --------------------------------------
 
@@ -106,7 +122,6 @@ def assign_actions(bot):
     @bot.command(name="py", help="Execute python code in Docker(not yet)")
     async def run_script(context: commands.Context, *, code: str):
 
-        # check code safety in future
         # Extract code
         striped = code.strip()
 
@@ -118,59 +133,93 @@ def assign_actions(bot):
 
         # Dumb way when it's not certain - put sequence of try-except, lel
 
-        code_ = code_format.format(code)
+        # code_ = code_format.format(code)
+        code_ = code
 
         logger.info(
-            "Received code from %s by %s - detail: %s",
+            "Received code from %s by %s\ndetail: %s",
             context.channel,
             context.author,
             code_,
         )
 
-        try:
-            proc = await asyncio.create_subprocess_shell(
-                code_, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
-            )
-        except Exception as err_:
-            await context.reply(msg_format.format(err_))
+        if not args.ip or not args.port:
+            await context.reply("Sorry! Currently my owner didn't provide me either IP or Port, I can't access server for execution!")
             return
 
         try:
-            stdout, stderr = await proc.communicate()
+            reader, writer = await asyncio.open_connection(args.ip, port=args.port)
         except Exception as err_:
-            await context.reply(
-                f"{msg_format.format(err_)}\n\nExited with return code {proc.returncode}"
-            )
+            logger.critical(err_)
+
+            await context.reply(f"Encountered error on my side! It's not your fault!\n\n{err_}")
             return
 
-        output = []
+        # Send code
+        send_byte = encode(code_)
+        writer.write(send_byte)
+        await writer.drain()
+        logger.info("Sent {}", len(send_byte))
 
-        if stdout:
-            output.append(stdout.decode(codec))
-
-        if stderr:
-            output.append(stderr.decode(codec))
-
-        message = "\n".join(output)
-
-        exit_msg = f"\nExited with return code {proc.returncode}"
+        # read data until delim is received
+        data = b""
 
         try:
-            await context.reply(msg_format.format(message) + exit_msg)
-        except HTTPException as err_:
+            while end_signature_encoded not in data:
+                data += await asyncio.wait_for(reader.read(1024), timeout=10)
+        except asyncio.TimeoutError:
+            await context.reply("Got timeout error with your request! (< 10s)")
+            return
 
-            if len(message) + len(exit_msg) + (len(msg_format) - 2) >= 2000:
-                fitted = message[
-                    : 2000 - len(overflow_msg) - len(exit_msg) - (len(msg_format) - 2)
-                ]
-                cut_target = fitted.split("\n")[-1]
-                message = fitted.removesuffix(cut_target) + overflow_msg
-
-                await context.reply(message + exit_msg)
-                return
-
-            # This shouldn't run
-            logger.debug("Got other http error: %s", err_)
+        # decode and send it
+        resp = decode(data)
+        logger.debug("Got response, size {}", len(data))
+        await context.reply(resp)
+        #
+        # try:
+        #     proc = await asyncio.create_subprocess_shell(
+        #         code_, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+        #     )
+        # except Exception as err_:
+        #     await context.reply(msg_format.format(err_))
+        #     return
+        #
+        # try:
+        #     stdout, stderr = await proc.communicate()
+        # except Exception as err_:
+        #     await context.reply(
+        #         f"{msg_format.format(err_)}\n\nExited with return code {proc.returncode}"
+        #     )
+        #     return
+        #
+        # output = []
+        #
+        # if stdout:
+        #     output.append(stdout.decode(codec))
+        #
+        # if stderr:
+        #     output.append(stderr.decode(codec))
+        #
+        # message = "\n".join(output)
+        #
+        # exit_msg = f"\nExited with return code {proc.returncode}"
+        #
+        # try:
+        #     await context.reply(msg_format.format(message) + exit_msg)
+        # except HTTPException as err_:
+        #
+        #     if len(message) + len(exit_msg) + (len(msg_format) - 2) >= 2000:
+        #         fitted = message[
+        #             : 2000 - len(overflow_msg) - len(exit_msg) - (len(msg_format) - 2)
+        #         ]
+        #         cut_target = fitted.split("\n")[-1]
+        #         message = fitted.removesuffix(cut_target) + overflow_msg
+        #
+        #         await context.reply(message + exit_msg)
+        #         return
+        #
+        #     # This shouldn't run
+        #     logger.debug("Got other http error: %s", err_)
 
     # --------------------------------------
 
@@ -222,6 +271,9 @@ if __name__ == "__main__":
 
     parser.add_argument("bot_token", type=str, help="Bot's token")
     parser.add_argument("guild_id", type=int, help="Server's ID")
+    parser.add_argument("channel_id", type=int, help="Channel's ID")
+    parser.add_argument("ip", type=str, default="", help="asyncio server's ip, if this is omitted you can't use python command.")
+    parser.add_argument("port", type=int, default=0, help="asyncio server's port, if this is omitted you can't use python command.")
 
     args = parser.parse_args()
 
