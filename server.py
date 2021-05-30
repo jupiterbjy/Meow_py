@@ -1,4 +1,8 @@
-#!/usr/bin/python3.9
+#!/usr/local/bin/python3.9
+
+"""
+Only tested to run on raspberry pi, but shouldn't be limited to it only.
+"""
 
 import asyncio
 from loguru import logger
@@ -7,6 +11,9 @@ from sys import executable
 
 end_signature = "\u200a\u200a\u200a"
 end_signature_encoded = end_signature.encode("utf8")
+
+
+# logger.add("server_{time}", rotation="12:00", retention="10 days", compression="zip")
 
 
 def encode(string: str):
@@ -23,7 +30,7 @@ def decode(byte_string: bytes):
 
 async def handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
 
-    logger.debug(f"Receiving connection from ")
+    logger.debug("Receiving connection.")
 
     data = b""
 
@@ -37,7 +44,13 @@ async def handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     logger.debug(decoded)
 
     try:
-        proc = await asyncio.create_subprocess_exec(executable, "-c", decoded, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
+        proc = await asyncio.create_subprocess_exec(
+            executable,
+            "-c",
+            decoded,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
         stdout, stderr = await proc.communicate()
     except Exception as err:
         writer.write(encode(str(err)))
@@ -59,6 +72,8 @@ async def handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
 
     writer.close()
 
+    logger.debug("Connection closed.")
+
 
 async def main_routine():
     server = await asyncio.start_server(handler, port=8123)
@@ -71,4 +86,8 @@ async def main_routine():
         await server.serve_forever()
 
 
-asyncio.run(main_routine())
+while True:
+    try:
+        asyncio.run(main_routine())
+    except Exception as err:
+        pass
