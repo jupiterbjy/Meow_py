@@ -223,7 +223,7 @@ def assign_actions(bot: commands.bot):
 
     @get_stream_image.error
     async def get_stream_image_error(context: commands.Context, _):
-        await context.reply(f"You passed wrong parameter! Value should be integer!")
+        await context.reply("You passed wrong parameter! Value should be integer!")
 
     # --------------------------------------
 
@@ -253,7 +253,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     bot_ = commands.Bot(
-        command_prefix="/", description="Bot for cyan's robot playground!"
+        command_prefix="/",
+        description="Meow World, Nyanstaree~🌟 I'm a bot for cyan's robot playground!",
+        help_command=commands.DefaultHelpCommand(no_category="Commands"),
     )
     assign_actions(bot_)
 
