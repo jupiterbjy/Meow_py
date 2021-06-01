@@ -3,7 +3,9 @@
 import argparse
 import asyncio
 import pathlib
+from datetime import datetime, timedelta, timezone
 
+from dateutil.parser import isoparse
 from discord.ext import commands
 from discord import DiscordException, Embed, File, Colour, Game
 from loguru import logger
@@ -238,15 +240,23 @@ def assign_actions(bot: commands.bot):
 
         client = GoogleClient(args.google_api)
 
-        new_ = client.get_latest_videos(args.channel_id, 1)[0]
+        new_ = client.get_latest_videos("UC9wbdkwvYVSgKtOZ3Oov98g", 1)[0]
+
+        diff = datetime.now(timezone.utc) - isoparse(new_.published_at)
+
+        if diff.days:
+            diff_str = f"Uploaded {diff.days} day(s) ago."
+        else:
+            diff_str = f"Uploaded {diff.seconds // 3600}h {(diff.seconds % 3600) // 60}m ago."
 
         embed = Embed(
             title=new_.title,
-            description=new_.description.strip.split("\n")[0],
+            description=new_.description.strip().split("\n")[0],
             colour=Colour.from_rgb(24, 255, 255)
         )
 
-        embed.set_image(url=new_.thumbnail_url())
+        embed.set_image(url=new_.thumbnail_url(4))
+        embed.set_footer(text=diff_str)
 
         await context.reply(embed=embed)
 

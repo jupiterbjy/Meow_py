@@ -44,7 +44,10 @@ class VideoInfo:
         self.channel_id = snippet["channelId"]
         self.video_id = snippet["resourceId"]["videoId"]
 
-        self.live_content = snippet["liveBroadcastContent"]
+        try:
+            self.live_content = snippet["liveBroadcastContent"]
+        except KeyError:
+            self.live_content = ""
 
         self._thumbnail = snippet["thumbnails"]
 
