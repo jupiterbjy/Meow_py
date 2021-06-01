@@ -9,6 +9,8 @@ from discord import DiscordException, Embed, File, Colour, Game
 from loguru import logger
 from traceback_with_variables import activate_by_import
 
+from youtube_api_client import GoogleClient, VideoInfo
+
 
 assert activate_by_import
 
@@ -227,6 +229,29 @@ def assign_actions(bot: commands.bot):
 
     # --------------------------------------
 
+    @bot.command(name="latest", help="Shows latest uploaded video.")
+    async def get_latest(context: commands.Context):
+
+        if not args.google_api:
+            await context.reply("Sorry! My owner didn't provide me google API key, I can't use API!")
+            return
+
+        client = GoogleClient(args.google_api)
+
+        new_ = client.get_latest_videos(args.channel_id, 1)[0]
+
+        embed = Embed(
+            title=new_.title,
+            description=new_.description.strip.split("\n")[0],
+            colour=Colour.from_rgb(24, 255, 255)
+        )
+
+        embed.set_image(url=new_.thumbnail_url())
+
+        await context.reply(embed=embed)
+
+    # --------------------------------------
+
 
 if __name__ == "__main__":
 
@@ -249,6 +274,7 @@ if __name__ == "__main__":
         default=0,
         help="asyncio server's port, if this is omitted you can't use python command.",
     )
+    parser.add_argument("-g", "--google-api", type=str, default="", help="google data api key")
 
     args = parser.parse_args()
 
