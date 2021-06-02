@@ -44,14 +44,21 @@ async def handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     logger.debug(decoded)
 
     try:
-        proc = await asyncio.create_subprocess_exec(
+        proc = await asyncio.wait_for(asyncio.create_subprocess_exec(
             executable,
             "-c",
             decoded,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-        )
-        stdout, stderr = await proc.communicate()
+        ), 10)
+
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), 10)
+
+    except asyncio.TimeoutError:
+        writer.write(encode("Reached 10 second timeout limit while executing."))
+        await writer.drain()
+        return
+
     except Exception as err:
         writer.write(encode(str(err)))
         await writer.drain()

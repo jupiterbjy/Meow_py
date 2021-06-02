@@ -3,7 +3,8 @@
 import argparse
 import asyncio
 import pathlib
-from datetime import datetime, timedelta, timezone
+import json
+from datetime import datetime, timezone
 
 from dateutil.parser import isoparse
 from discord.ext import commands
@@ -207,6 +208,9 @@ def assign_actions(bot: commands.bot):
             index = len(sorted_files) - 1
             target = sorted_files[index]
 
+        target_json = target.with_suffix(".json")
+        loaded_json = json.loads(target_json.read_text())
+
         date, timestamp, video_id = target.stem.split("_", 2)
         link = f"https://youtu.be/{video_id}"
 
@@ -218,6 +222,16 @@ def assign_actions(bot: commands.bot):
             description=link,
             colour=Colour.from_rgb(24, 255, 255),
         )
+
+        embed.add_field(
+            name="Stream title", value=loaded_json["stream_title"], inline=False
+        )
+
+        embed.add_field(
+            name="Sample count / interval",
+            value=f"{len(loaded_json['data']['viewCount'])} / {loaded_json['interval']}",
+        )
+
         embed.set_image(url=f"attachment://{timestamp}.png")
         embed.set_thumbnail(url=f"https://i.ytimg.com/vi/{video_id}/mqdefault.jpg")
 
@@ -235,25 +249,37 @@ def assign_actions(bot: commands.bot):
     async def get_latest(context: commands.Context):
 
         if not args.google_api:
-            await context.reply("Sorry! My owner didn't provide me google API key, I can't use API!")
+            await context.reply(
+                "Sorry! My owner didn't provide me google API key, I can't use API!"
+            )
             return
 
         client = GoogleClient(args.google_api)
 
-        new_ = client.get_latest_videos("UC9wbdkwvYVSgKtOZ3Oov98g", 1)[0]
+        stat_less_main = client.get_latest_videos("UC9wbdkwvYVSgKtOZ3Oov98g", 1)[0]
+        stat_less_sub = client.get_latest_videos("UC9waeFu44i5NwB7x48Tq6Bw", 1)[0]
+
+        latest = stat_less_sub if stat_less_main.pub_date < stat_less_sub.pub_date else stat_less_main
+
+        new_ = client.get_videos_info(latest.video_id)[0]
 
         diff = datetime.now(timezone.utc) - isoparse(new_.published_at)
 
         if diff.days:
             diff_str = f"Uploaded {diff.days} day(s) ago."
         else:
-            diff_str = f"Uploaded {diff.seconds // 3600}h {(diff.seconds % 3600) // 60}m ago."
+            diff_str = (
+                f"Uploaded {diff.seconds // 3600}h {(diff.seconds % 3600) // 60}m ago."
+            )
 
         embed = Embed(
             title=new_.title,
             description=new_.description.strip().split("\n")[0],
-            colour=Colour.from_rgb(24, 255, 255)
+            colour=Colour.from_rgb(24, 255, 255),
         )
+
+        embed.add_field(name="Views", value=f"{new_.view_count}")
+        embed.add_field(name="Likes", value=f"{new_.like_count}", inline=True)
 
         embed.set_image(url=new_.thumbnail_url(4))
         embed.set_footer(text=diff_str)
@@ -284,15 +310,20 @@ if __name__ == "__main__":
         default=0,
         help="asyncio server's port, if this is omitted you can't use python command.",
     )
-    parser.add_argument("-g", "--google-api", type=str, default="", help="google data api key")
+    parser.add_argument(
+        "-g", "--google-api", type=str, default="", help="google data api key"
+    )
 
     args = parser.parse_args()
 
+    # end of parsing
+
     bot_ = commands.Bot(
         command_prefix="/",
-        description="Meow World, Nyanstaree~🌟 I'm a bot for cyan's robot playground!",
+        description="Meow World, Nyanstaree~🌟 I'm a playground bot, type /help for usage!",
         help_command=commands.DefaultHelpCommand(no_category="Commands"),
     )
+
     assign_actions(bot_)
 
     try:

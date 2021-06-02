@@ -10,7 +10,7 @@ import pathlib
 import datetime
 from typing import Tuple
 
-from dateutil import parser as date_parser
+from dateutil.parser import isoparse
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
@@ -42,7 +42,11 @@ class VideoInfo:
         self.published_at = snippet["publishedAt"]
 
         self.channel_id = snippet["channelId"]
-        self.video_id = snippet["resourceId"]["videoId"]
+
+        try:
+            self.video_id = snippet["resourceId"]["videoId"]
+        except KeyError:
+            self.video_id = dict_["id"]
 
         try:
             self.live_content = snippet["liveBroadcastContent"]
@@ -50,6 +54,15 @@ class VideoInfo:
             self.live_content = ""
 
         self._thumbnail = snippet["thumbnails"]
+
+        is_stat_available = "statistics" in dict_.keys()
+
+        self.view_count = dict_["statistics"]["viewCount"] if is_stat_available else 0
+        self.like_count = dict_["statistics"]["likeCount"] if is_stat_available else 0
+
+    @property
+    def pub_date(self):
+        return isoparse(self.published_at)
 
     @property
     def is_upcoming(self):
@@ -166,6 +179,6 @@ class GoogleClient:
             "scheduledStartTime"
         ]
 
-        start_time = date_parser.isoparse(time_string)
+        start_time = isoparse(time_string)
 
         return start_time
