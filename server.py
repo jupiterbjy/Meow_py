@@ -44,36 +44,40 @@ async def handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     logger.debug(decoded)
 
     try:
-        proc = await asyncio.wait_for(asyncio.create_subprocess_exec(
+        proc = await asyncio.create_subprocess_exec(
             executable,
             "-c",
             decoded,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-        ), 10)
+        )
 
         stdout, stderr = await asyncio.wait_for(proc.communicate(), 10)
 
     except asyncio.TimeoutError:
-        writer.write(encode("Reached 10 second timeout limit while executing."))
-        await writer.drain()
-        return
+        send_byte = encode("Reached 10 second timeout limit while executing.")
 
-    except Exception as err:
-        writer.write(encode(str(err)))
-        await writer.drain()
-        return
+    except Exception as err_:
+        send_byte = encode(str(err_))
 
-    output = f"```\n{stdout.decode('utf8')}"
+    else:
+        output = f"```\n{stdout.decode('utf8')}"
 
-    if stderr:
-        output += "\n" + stderr.decode("utf8")
+        if stderr:
+            output += "\n" + stderr.decode("utf8")
 
-    output += f"\n```\nReturn code was {proc.returncode}"
+        output += f"\n```\nReturn code was {proc.returncode}"
 
-    send_byte = encode(output)
+        send_byte = encode(output)
+
     writer.write(send_byte)
-    await writer.drain()
+
+    try:
+        await asyncio.wait_for(writer.drain(), 10)
+    except asyncio.TimeoutError:
+        logger.critical("Reached timeout while sending back. Is connection lost amid?")
+        writer.close()
+        return
 
     logger.info(f"Sent {len(send_byte)}")
 

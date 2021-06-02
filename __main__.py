@@ -156,7 +156,12 @@ def assign_actions(bot: commands.bot):
             return
 
         try:
-            reader, writer = await asyncio.open_connection(args.ip, port=args.port)
+            reader, writer = await asyncio.wait_for(asyncio.open_connection(args.ip, port=args.port), timeout=15)
+
+        except asyncio.TimeoutError:
+            await context.reply("Got timeout error connecting to server, this is probably my fault!")
+            return
+
         except Exception as err_:
             logger.critical(err_)
             logger.critical(f"IP was {args.ip}, and port was {args.port}")
@@ -177,9 +182,9 @@ def assign_actions(bot: commands.bot):
 
         try:
             while end_signature_encoded not in data:
-                data += await asyncio.wait_for(reader.read(1024), timeout=10)
+                data += await asyncio.wait_for(reader.read(1024), timeout=15)
         except asyncio.TimeoutError:
-            await context.reply("Got timeout error with your request! (< 10s)")
+            await context.reply("Got timeout error with your request!")
             return
 
         # decode and send it
