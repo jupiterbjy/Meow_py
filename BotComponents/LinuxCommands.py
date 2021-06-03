@@ -4,7 +4,10 @@ from discord.ext.commands import Context
 from discord import Embed
 from loguru import logger
 
-from . import CommandRepresentation
+try:
+    from . import CommandRepresentation
+except ModuleNotFoundError:
+    from __init__ import CommandRepresentation
 
 
 linux_info_command = (

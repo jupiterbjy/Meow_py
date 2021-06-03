@@ -7,7 +7,7 @@ from discord.ext.commands import Context
 from discord import Embed, Colour, File
 from loguru import logger
 
-from youtube_api_client import GoogleClient
+from .RequiredModules.youtube_api_client import GoogleClient
 from . import CommandRepresentation
 
 

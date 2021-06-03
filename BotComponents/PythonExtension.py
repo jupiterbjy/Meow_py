@@ -120,7 +120,7 @@ async def run_script(context: Context, *, code: str):
         return_code = "No return code"
 
     # prepare image and color
-    image_url = config["image_success"] if not return_code else config["image_fail"]
+    image_url = config["image_success"] if not return_code else config["image_failed"]
     color = Colour.from_rgb(122, 196, 92) if not return_code else Colour.from_rgb(196, 92, 92)
 
     # prepare embed

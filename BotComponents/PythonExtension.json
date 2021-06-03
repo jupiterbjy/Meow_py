@@ -1,4 +1,6 @@
 {
   "ip": "PUT_SERVER_IP_HERE",
-  "port": "PUT_SERVER_PORT_HERE"
+  "port": "PUT_SERVER_PORT_HERE",
+  "image_success": "https://imgur.com/TE0kShJ.png",
+  "image_failed": "https://imgur.com/0E1HRNk.png"
 }

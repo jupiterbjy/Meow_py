@@ -5,7 +5,7 @@ from discord.ext import commands
 from discord import DiscordException, Embed, Game
 from loguru import logger
 
-from DynamicLoader import load_command, LOADED_MODULE
+from DynamicLoader import load_command, LOADED_LIST
 
 
 def assign_basic_commands(bot: commands.bot):
@@ -13,6 +13,8 @@ def assign_basic_commands(bot: commands.bot):
     first_setup_done = False
 
     async def first_call():
+
+        assign_expansion_commands()
 
         message = "Meow World, Nyanstaree~🌟 I am a simple python bot you can play with. Type /help for usage!"
 
@@ -53,7 +55,7 @@ def assign_basic_commands(bot: commands.bot):
         if action in ("reload", "list"):
             embed = Embed(title="Dynamically loaded Commands")
 
-            for key, val in LOADED_MODULE.items():
+            for key, val in LOADED_LIST.items():
                 embed.add_field(name=key, value=val, inline=False)
 
             await context.reply(embed=embed)

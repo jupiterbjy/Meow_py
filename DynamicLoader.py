@@ -10,7 +10,8 @@ from loguru import logger
 from BotComponents import CommandRepresentation
 
 
-LOCATION = pathlib.Path(__file__).parent.absolute().joinpath("BotComponents")
+FOLDER_NAME = "BotComponents"
+LOCATION = pathlib.Path(__file__).parent.joinpath(FOLDER_NAME)
 LOADED_MODULE = {}
 LOADED_LIST = {}
 LOADED_FILE_HASH = {}
@@ -42,26 +43,35 @@ def load_command() -> List[CommandRepresentation]:
             if script_path.stem in LOADED_MODULE.keys():
                 module = importlib.reload(LOADED_MODULE[script_path.stem])
             else:
-                module = importlib.import_module(script_path.as_posix())
+                module = importlib.import_module(".".join((FOLDER_NAME, script_path.stem)))
 
         except SyntaxError as err:
             logger.critical("Got syntax error in {} at line {}, skipping", script_path.name, err.lineno)
-            state = "SyntaxError"
+            state = "❌ SyntaxError"
 
         except Exception as err:
-            logger.critical("Got {} while importing expansions", type(err))
-            state = str(type(err))
+            logger.critical("Got {} while importing expansions\n\n{}", type(err).__name__, err)
+            state = f"❌ {type(err).__name__}"
 
         else:
             # update reference
             LOADED_MODULE[script_path.stem] = module
-            LOADED_FILE_HASH[script_path.stem] = hash(script_path.read_text())
+
+            # find if it also has data file with same name
+            data = script_path.with_suffix(".json")
+
+            if data.exists():
+                hashed = hash(script_path.read_text() + data.read_text())
+            else:
+                hashed = hash(script_path.read_text())
+
+            LOADED_FILE_HASH[script_path.stem] = hashed
 
             try:
                 command_list = getattr(module, "__all__")
             except NameError:
                 logger.critical("Missing name __all__ in global scope of the script {}, skipping.", script_path.name)
-                state = "NameError"
+                state = "❌ NameError"
             else:
                 fetched_list.extend(command_list)
                 state = ", ".join(str(command.name) for command in command_list)
@@ -89,9 +99,18 @@ def fetch_scripts() -> List[pathlib.Path]:
 
         for path_ in paths:
             try:
-                if LOADED_FILE_HASH[path_.stem] != hash(path_.read_text()):
+                # find if it also has data file with same name
+                data = path_.with_suffix(".json")
+
+                if data.exists():
+                    hashed = hash(path_.read_text() + data.read_text())
+                else:
+                    hashed = hash(path_.read_text())
+
+                if LOADED_FILE_HASH[path_.stem] != hashed:
                     logger.debug("Got different hash on {}", path_.stem)
                     yield path_
+
             except KeyError:
                 yield path_
 
