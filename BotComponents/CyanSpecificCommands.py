@@ -1,10 +1,11 @@
 import json
 import pathlib
 from datetime import datetime, timezone
+from typing import Union
 
 from dateutil.parser import isoparse
 from discord.ext.commands import Context
-from discord import Embed, Colour, File
+from discord import Embed, Colour, File, Member, User, Role, Guild, Forbidden
 from loguru import logger
 
 from .RequiredModules.youtube_api_client import GoogleClient
@@ -121,7 +122,56 @@ async def get_latest(context: Context):
     await context.reply(embed=embed)
 
 
-__all__ = [CommandRepresentation(run_literally, name="run", help="Run cyan run!")]
+# --------------------------------------
+
+
+async def subscribe(context: Context):
+
+    user: Union[Member, User] = context.author
+
+    # get role
+    guild: Guild = context.guild
+    role = guild.get_role(848099556024778782)
+
+    if role in user.roles:
+        await context.reply("You're already subscribed to live stream notification!")
+        return
+
+    try:
+        await user.add_roles(role, reason="Subscribing to live stream notification.")
+    except Forbidden:
+        await context.reply("I have no privilege to assign roles! Ask mods for help!")
+    else:
+        await context.reply("Subscribed to live stream notification!")
+
+
+# --------------------------------------
+
+
+async def unsubscribe(context: Context):
+    user: Union[Member, User] = context.author
+
+    # get role
+    guild: Guild = context.guild
+    role = guild.get_role(848099556024778782)
+
+    if role not in user.roles:
+        await context.reply("You're not subscribed to live stream notification!")
+        return
+
+    try:
+        await user.remove_roles(role, reason="Unsubscribing to live stream notification.")
+    except Forbidden:
+        await context.reply("I have no privilege to remove roles! Ask mods for help!")
+    else:
+        await context.reply("Unsubscribed from live stream notification!")
+
+
+__all__ = [
+    CommandRepresentation(run_literally, name="run", help="Run cyan run!"),
+    CommandRepresentation(subscribe, name="sub", help="Subscribe to live stream notification"),
+    CommandRepresentation(unsubscribe, name="unsub", help="Unsubscribe from live stream notification")
+]
 
 # Add if google api is provided
 if google_api_key:

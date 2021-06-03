@@ -89,9 +89,9 @@ async def handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
 async def main_routine():
     server = await asyncio.start_server(handler, port=8123)
 
-    addr = server.sockets[0].getsockname()
+    address = server.sockets[0].getsockname()
 
-    logger.info(f"Serving on {addr}")
+    logger.info(f"Serving on {address}")
 
     async with server:
         await server.serve_forever()
