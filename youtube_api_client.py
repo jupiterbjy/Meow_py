@@ -16,6 +16,8 @@ from googleapiclient.errors import HttpError
 
 
 assert HttpError
+
+
 YOUTUBE_API_SERVICE = "youtube"
 YOUTUBE_API_VERSION = "v3"
 API_FILE = pathlib.Path(__file__).parent.joinpath("api_key").absolute()
