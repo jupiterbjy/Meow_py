@@ -72,9 +72,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("bot_token", type=str, help="Bot's token")
-    parser.add_argument("guild_id", type=int, help="Server's ID")
-    parser.add_argument("channel_id", type=int, help="Channel's ID")
+    parser.add_argument("bot_token", type=str, help="Bot's webhook url")
+    parser.add_argument("guild_id", type=int, help="Discord Server's ID")
+    parser.add_argument("channel_id", type=int, help="Discord Channel's ID where bot can talk to.")
 
     args = parser.parse_args()
 
