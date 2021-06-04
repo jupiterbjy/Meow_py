@@ -1,5 +1,11 @@
 #!/usr/bin/python3
 
+"""
+Modular discord bot that supports dynamic reload of modularized commands.
+"""
+
+import json
+import pathlib
 import argparse
 from discord.ext import commands
 from discord import DiscordException, Embed, Game
@@ -16,22 +22,28 @@ def assign_basic_commands(bot: commands.bot):
 
         assign_expansion_commands()
 
-        message = "Meow World, Nyanstaree~🌟 I am a simple python bot you can play with. Type /help for usage!"
+        message = config["startup_message"]
+        activity = config["bot_activity"]
 
-        await bot.change_presence(activity=Game(name="Cuddling Python"))
-        await bot.get_channel(args.channel_id).send(message)
+        if message:
+            await bot.get_channel(config["channel_id"]).send(message)
+
+        if activity:
+            await bot.change_presence(activity=Game(name=activity))
 
     @bot.event
     async def on_ready():
         nonlocal first_setup_done
 
-        print(f"{bot.user} connected.")
+        guild_id = config["guild_id"]
 
-        if not any(guild.id == args.guild_id for guild in bot.guilds):
-            logger.critical("Bot is not connected to given server ID {}", args.guild_id)
+        logger.info(f"{bot.user} connected.")
+
+        if not any(guild.id == guild_id for guild in bot.guilds):
+            logger.critical("Bot is not connected to given server ID {}", guild_id)
 
             raise DiscordException(
-                f"Bot is not connected to given server ID {args.guild_id}"
+                f"Bot is not connected to given server ID {guild_id}"
             )
 
         if not first_setup_done:
@@ -46,22 +58,27 @@ def assign_basic_commands(bot: commands.bot):
         for command_repr in load_command():
             command_repr.apply_command(bot)
 
-    @bot.command(name="expansion", help="Shows/reload expansion commands.")
-    async def expansion(context: commands.Context, action="list"):
+    @bot.command(
+        name="module",
+        help="Shows/reload dynamically loaded commands. "
+        "Use parameter 'reload' to reload edited/newly added modules.",
+    )
+    async def module(context: commands.Context, action="list"):
 
         if action == "reload":
             assign_expansion_commands()
 
         if action in ("reload", "list"):
-            embed = Embed(title="Dynamically loaded Commands")
+            embed = Embed(title="Loaded Commands Status")
 
             for key, val in LOADED_LIST.items():
-                embed.add_field(name=key, value=val, inline=False)
+                mark = "❌" if "Error" in val else "✔️"
+                embed.add_field(name=f"{mark} {key}", value=val, inline=False)
 
             await context.reply(embed=embed)
             return
 
-        await context.reply(f"Got unknown action '{action}'!")
+        await context.reply(f"Got unrecognized action '{action}'!")
 
     # --------------------------------------
 
@@ -72,23 +89,28 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("bot_token", type=str, help="Bot's webhook url")
-    parser.add_argument("guild_id", type=int, help="Discord Server's ID")
-    parser.add_argument("channel_id", type=int, help="Discord Channel's ID where bot can talk to.")
+    parser.add_argument(
+        "config_path",
+        type=pathlib.Path,
+        default=pathlib.Path(__file__).parent.joinpath("configuration.json"),
+        help="Path to configuration file. Default is 'configuration.json' in current script's path.",
+    )
 
     args = parser.parse_args()
+
+    config = json.loads(args.config_path.read_text())
 
     # end of parsing
 
     bot_ = commands.Bot(
         command_prefix="/",
-        description="Meow World, Nyanstaree~🌟 I'm a playground bot, type /help for usage!",
+        description=config["help_message"],
         help_command=commands.DefaultHelpCommand(no_category="Commands"),
     )
 
     assign_basic_commands(bot_)
 
     try:
-        bot_.run(args.bot_token)
+        bot_.run(config["discord_bot_token"])
     except DiscordException as err:
         logger.critical("DiscordException - is token valid? Details: {}", err)

@@ -47,11 +47,11 @@ def load_command() -> List[CommandRepresentation]:
 
         except SyntaxError as err:
             logger.critical("Got syntax error in {} at line {}, skipping", script_path.name, err.lineno)
-            state = "❌ SyntaxError"
+            state = "Reason: SyntaxError"
 
         except Exception as err:
             logger.critical("Got {} while importing expansions\n\n{}", type(err).__name__, err)
-            state = f"❌ {type(err).__name__}"
+            state = f"Reason: {type(err).__name__}"
 
         else:
             # update reference
@@ -74,7 +74,7 @@ def load_command() -> List[CommandRepresentation]:
                 state = "❌ NameError"
             else:
                 fetched_list.extend(command_list)
-                state = ", ".join(str(command.name) for command in command_list)
+                state = "✔" + ", ".join(str(command.name) for command in command_list)
 
         LOADED_LIST[f"{script_path.name}"] = state
 
@@ -83,7 +83,7 @@ def load_command() -> List[CommandRepresentation]:
 
 def fetch_scripts() -> List[pathlib.Path]:
     """
-    Dynamically search and load all scripts in LOCATION.
+    Dynamically search and load all scripts in BotComponents.
 
     THIS WILL NOT RELOAD __init__.py! This is limitation of importlib.
 

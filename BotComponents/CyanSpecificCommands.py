@@ -17,6 +17,7 @@ loaded_config = json.loads(config_path.read_text())
 
 google_api_key = loaded_config["google_api"]
 path_designated = loaded_config["record_absolute_path"]
+sub_role_id = loaded_config["subscription_role_id"]
 
 
 async def run_literally(context: Context):
@@ -131,7 +132,7 @@ async def subscribe(context: Context):
 
     # get role
     guild: Guild = context.guild
-    role = guild.get_role(848099556024778782)
+    role = guild.get_role(sub_role_id)
 
     if role in user.roles:
         await context.reply("You're already subscribed to live stream notification!")
@@ -153,7 +154,7 @@ async def unsubscribe(context: Context):
 
     # get role
     guild: Guild = context.guild
-    role = guild.get_role(848099556024778782)
+    role: Role = guild.get_role(sub_role_id)
 
     if role not in user.roles:
         await context.reply("You're not subscribed to live stream notification!")
