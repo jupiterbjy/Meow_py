@@ -31,6 +31,8 @@ def assign_basic_commands(bot: commands.bot):
         if activity:
             await bot.change_presence(activity=Game(name=activity))
 
+    # --------------------------------------
+
     @bot.event
     async def on_ready():
         nonlocal first_setup_done
@@ -65,6 +67,8 @@ def assign_basic_commands(bot: commands.bot):
     )
     async def module(context: commands.Context, action="list"):
 
+        logger.info("mMdule [{}] called", action)
+
         if action == "reload":
             assign_expansion_commands()
 
@@ -72,8 +76,8 @@ def assign_basic_commands(bot: commands.bot):
             embed = Embed(title="Loaded Commands Status")
 
             for key, val in LOADED_LIST.items():
-                mark = "❌" if "Error" in val else "✔️"
-                embed.add_field(name=f"{mark} {key}", value=val, inline=False)
+                mark = " ❌" if "Error" in val else ""
+                embed.add_field(name=f"{key}{mark}", value=val, inline=False)
 
             await context.reply(embed=embed)
             return
@@ -90,7 +94,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        "config_path",
+        "-p",
+        "--config-path",
         type=pathlib.Path,
         default=pathlib.Path(__file__).parent.joinpath("configuration.json"),
         help="Path to configuration file. Default is 'configuration.json' in current script's path.",

@@ -71,10 +71,10 @@ def load_command() -> List[CommandRepresentation]:
                 command_list = getattr(module, "__all__")
             except NameError:
                 logger.critical("Missing name __all__ in global scope of the script {}, skipping.", script_path.name)
-                state = "❌ NameError"
+                state = "Reason: NameError"
             else:
                 fetched_list.extend(command_list)
-                state = "✔" + ", ".join(str(command.name) for command in command_list)
+                state = ", ".join(str(command.name) for command in command_list)
 
         LOADED_LIST[f"{script_path.name}"] = state
 
