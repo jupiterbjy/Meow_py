@@ -1,17 +1,13 @@
 ### Usage
 
 ```commandline
-❯ py ./CustomizedMeow_py -h
-
-usage: [-h] bot_token guild_id channel_id
-
-positional arguments:
-  bot_token   Bot's webhook url
-  guild_id    Discord Server's ID
-  channel_id  Discord Channel's ID where bot can talk to.
+usage: __main__.py [-h] [-p CONFIG_PATH]
 
 optional arguments:
-  -h, --help  show this help message and exit
+  -h, --help            show this help message and exit
+  -p CONFIG_PATH, --config-path CONFIG_PATH
+                        Path to configuration file. Default is
+                        'configuration.json' in current script's path.
 ```
 
 ---
@@ -22,13 +18,19 @@ optional arguments:
 Meow World, Nyanstaree~🌟 I'm a playground bot, type /help for usage!
 
 Commands:
-  expansion   Shows/reload expansion commands.
+  assignable  Show if user is applicable for assignation
+  countdown   Starts countdown, can't set longer than 10.
+  echo        Echo back your writings.
   help        Shows this message
+  joined      Show your join dates. Pass Member ID to get that member's dates...
   latest      Shows latest uploaded video.
+  module      Shows/reload dynamically loaded commands. Use parameter 'reload...
   py          Execute python code remotely.
   run         Run cyan run!
   streamgraph Get stream's public statistics graph. Due to check interval and...
+  sub         Subscribe to live stream notification
   sysinfo     Get general system info. But why?
+  unsub       Unsubscribe from live stream notification
 
 Type /help command for more info on a command.
 You can also type /help category for more info on a category.
@@ -36,7 +38,7 @@ You can also type /help category for more info on a category.
 
 ### Built-in
 
-- `/expansion [action=list]`
+- `/module [action=list]`
   
   Shows/reload expansion commands. Without parameter or with parameter `list` will show loaded expansion status.
 

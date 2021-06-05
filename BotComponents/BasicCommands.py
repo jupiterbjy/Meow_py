@@ -17,7 +17,7 @@ async def echo(context: Context, *args):
 
 async def countdown(context: Context, number: int = 5):
 
-    logger.info("call on echo by {}\ncount: {}", context.author, number)
+    logger.info("call on countdown by {}\ncount: {}", context.author, number)
 
     if number < 1:
         await context.reply("Nothing to count!")
