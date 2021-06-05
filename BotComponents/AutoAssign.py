@@ -27,20 +27,6 @@ minimum_chats: int
 check_interval_minute: int
 
 
-class TimeDeltaWrap:
-    def __init__(self, time_delta: timedelta):
-        self.delta = time_delta
-
-    def __str__(self):
-        if self.delta.days:
-            return f"{self.delta.days}d"
-
-        hour, seconds = divmod(self.delta.seconds, 3600)
-        minute, seconds = divmod(seconds, 60)
-
-        return f"{hour}h {minute}m {seconds}s"
-
-
 async def member_chat_history_gen(channel, target_member: Member, max_date=3):
 
     max_duration = timedelta(days=max_date)
@@ -50,8 +36,6 @@ async def member_chat_history_gen(channel, target_member: Member, max_date=3):
         after_date = target_member.joined_at
     else:
         after_date = datetime.now() - max_duration
-
-    logger.debug("Will fetch chats from {}", after_date)
 
     def filter_(message_):
         return message_.author == target_member
@@ -147,7 +131,7 @@ class AssignCog(Cog):
 
     @tasks.loop(minutes=check_interval_minute)
     async def task(self):
-        server: Guild = await self.bot.get_guild(server_id)
+        server: Guild = self.bot.get_guild(server_id)
 
         if not server:
             logger.critical("Given server ID {} does not exists! Is ID correct and bot exists in server?", server_id)
@@ -199,7 +183,7 @@ class AssignCog(Cog):
         else:
             logger.debug(
                 f"User <{member.display_name}> - insufficient chats in last {check_last_days}d "
-                f"({minimum_chats - (idx + 1)}/{minimum_chats})"
+                f"({idx + 1}/{minimum_chats})"
             )
             return
 
