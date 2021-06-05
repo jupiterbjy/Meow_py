@@ -134,7 +134,7 @@ async def role_applicable(context: Context):
     )
 
 
-class AssignTask(Cog):
+class AssignCog(Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
 
@@ -213,5 +213,5 @@ __all__ = [
         name="assignable",
         help="Show if user is applicable for assignation",
     ),
-    CogRepresentation(AssignTask)
+    CogRepresentation(AssignCog)
 ]

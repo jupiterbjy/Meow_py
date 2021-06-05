@@ -56,10 +56,17 @@ def assign_basic_commands(bot: commands.bot):
 
     # --------------------------------------
 
+    add_failed = {}
+
     def assign_expansion_commands():
 
+        add_failed.clear()
+
         for command_repr in load_command():
-            command_repr.apply_command(bot)
+            try:
+                command_repr.apply_command(bot)
+            except Exception as err_:
+                add_failed[command_repr.name] = f"{type(err_).__name__}"
 
     @bot.command(
         name="module",
@@ -74,11 +81,19 @@ def assign_basic_commands(bot: commands.bot):
             assign_expansion_commands()
 
         if action in ("reload", "list"):
-            embed = Embed(title="Loaded Commands Status")
+            embed = Embed(
+                title="Loaded Commands/Cog Status",
+                description="Commands shown on failed list will be disabled. Cogs are not a command.",
+            )
 
             for key, val in LOADED_LIST.items():
                 mark = " ❌" if "Error" in val else ""
+
                 embed.add_field(name=f"{key}{mark}", value=val, inline=False)
+
+            if add_failed:
+                text = "\n".join(f"{key} - {val}" for key, val in add_failed.items())
+                embed.add_field(name="Commands Disabled", value=text)
 
             await context.reply(embed=embed)
             return
@@ -115,7 +130,7 @@ if __name__ == "__main__":
         command_prefix="/",
         description=config["help_message"],
         help_command=commands.DefaultHelpCommand(no_category="Commands"),
-        intents=intent
+        intents=intent,
     )
 
     assign_basic_commands(bot_)

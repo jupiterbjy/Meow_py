@@ -1,5 +1,7 @@
 from typing import Type
 
+from loguru import logger
+
 from discord.ext.commands import Bot, Cog
 
 
@@ -14,6 +16,8 @@ class CommandRepresentation:
 
     def apply_command(self, bot: Bot):
 
+        logger.info("Adding command {}", self.name)
+
         bot.remove_command(self.name)
         applied = bot.command(*self.args, **self.kwargs)(self.func)
 
@@ -23,10 +27,12 @@ class CommandRepresentation:
 
 class CogRepresentation:
     def __init__(self, cog: Type[Cog], *_, **__):
-        self.name = f"Cog {cog.__name__}"
+        self.name = f"{cog.__name__}[Cog]"
         self.cog = cog
 
     def apply_command(self, bot: Bot):
 
-        bot.remove_cog(self.cog.name)
-        bot.add_cog(self.cog)
+        logger.info("Adding cog {}", self.name)
+
+        bot.remove_cog(self.cog.__name__)
+        bot.add_cog(self.cog(bot))
