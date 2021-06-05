@@ -48,7 +48,8 @@ async def run_script(context: Context, *, code: str):
         code = striped.removeprefix("```python").removesuffix("```")
 
     else:
-        await context.reply("Please use \\```python\n<code>\n\\``` format!")
+        await context.reply("Please use \n\\```python\n<code>\n\\```\nformat!")
+        return
 
     logger.info(
         "Received code from {} by {}\ndetail: {}",
