@@ -138,8 +138,12 @@ class AssignCog(Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
 
+        logger.info("Cog AssignTask starting.")
+        self.task.start()
+
     def cog_unload(self):
         logger.info("Cog AssignTask stopping.")
+        self.task.cancel()
 
     @tasks.loop(minutes=check_interval_minute)
     async def task(self):

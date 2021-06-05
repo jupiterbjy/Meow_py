@@ -82,7 +82,7 @@ def assign_basic_commands(bot: commands.bot):
 
         if action in ("reload", "list"):
             embed = Embed(
-                title="Loaded Commands/Cog Status",
+                title="Loaded Commands/Cogs Status",
                 description="Commands shown on failed list will be disabled. Cogs are not a command.",
             )
 
