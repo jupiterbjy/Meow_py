@@ -1,9 +1,8 @@
-from datetime import datetime, timedelta, timezone
-from typing import Iterable
+import asyncio
+from datetime import datetime, timedelta
 
-from dateutil.parser import isoparse
 from discord.ext.commands import Context
-from discord import Embed, Colour, Member, Role, Asset, Guild, User, TextChannel
+from discord import Embed, Member, Role, Asset
 from loguru import logger
 
 from . import CommandRepresentation
@@ -14,6 +13,25 @@ async def echo(context: Context, *args):
     logger.info("call on echo by {}\ncontent: {}", context.author, args)
 
     await context.reply(" ".join(args))
+
+
+async def countdown(context: Context, number: int = 5):
+
+    logger.info("call on echo by {}\ncount: {}", context.author, number)
+
+    if number < 1:
+        await context.reply("Nothing to count!")
+        return
+
+    if number > 10:
+        await context.reply("Can't count more than 10, or I'll be rendered a spam!")
+
+    delta = timedelta(seconds=1)
+    last = datetime.now()
+
+    for n in range(1, number + 1):
+        await context.reply(f"Counting {n}/{number}!")
+        await asyncio.sleep(abs((last := (last + delta)) - datetime.now()).total_seconds())
 
 
 class TimeDeltaWrap:
@@ -95,7 +113,12 @@ __all__ = [
     CommandRepresentation(
         echo,
         name="echo",
-        help="echo back your writings.",
+        help="Echo back your writings.",
+    ),
+    CommandRepresentation(
+        countdown,
+        name="countdown",
+        help="Starts countdown, can't set longer than 10.",
     ),
     CommandRepresentation(
         joined,
