@@ -1,14 +1,14 @@
 import pathlib
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta
 from typing import List
 
-from dateutil.parser import isoparse
-from discord.ext.commands import Context
-from discord import Embed, Colour, Member, Role, Asset, Guild, User, TextChannel
+from discord.ext import tasks
+from discord.ext.commands import Context, Cog, Bot
+from discord import Embed, Member, Role, Guild, TextChannel
 from loguru import logger
 
-from . import CommandRepresentation
+from . import CommandRepresentation, CogRepresentation
 
 
 config_path = pathlib.Path(__file__).with_suffix(".json")
@@ -16,12 +16,15 @@ loaded_config = json.loads(config_path.read_text())
 
 
 locals().update(loaded_config)
+server_id: int
 checking_channel_ids: List[int]
+notify_at: int
 from_role: int
 new_role: int
 check_last_days: int
 minimum_joined_days: int
 minimum_chats: int
+check_interval_minute: int
 
 
 class TimeDeltaWrap:
@@ -57,6 +60,19 @@ async def member_chat_history_gen(channel, target_member: Member, max_date=3):
         yield message
 
 
+def generate_congratulation_embed(member: Member, next_role: Role, day, count):
+
+    embed = Embed(title=f"{member.display_name}", colour=next_role.colour)
+
+    embed.set_thumbnail(url=str(member.avatar_url))
+    embed.add_field(name="Member for", value=f"{day} days")
+    embed.add_field(
+        name=f"Chat for last {check_last_days} days", value=f"{count} times"
+    )
+
+    return embed
+
+
 async def role_applicable(context: Context):
 
     idx = -1
@@ -78,7 +94,7 @@ async def role_applicable(context: Context):
         return
 
     # check joined date
-    if (day := (datetime.now() - context.author.joined_at).days) < minimum_joined_days:
+    if (day := (datetime.now() - member.joined_at).days) < minimum_joined_days:
         await context.reply(
             f"Any user need to stay at least {minimum_joined_days} days in "
             f"this server for assignment, however user <@{member.id}> stayed {day} days."
@@ -92,7 +108,7 @@ async def role_applicable(context: Context):
         logger.debug("Checking channel {}", channel.name)
 
         async for _ in member_chat_history_gen(
-            channel, context.author, check_last_days
+            channel, member, check_last_days
         ):
             idx += 1
 
@@ -112,18 +128,83 @@ async def role_applicable(context: Context):
         )
         return
 
-    embed = Embed(title=f"{member.display_name}", colour=next_role.colour)
-
-    embed.set_thumbnail(url=str(member.avatar_url))
-    embed.add_field(name="Member for", value=f"{day} days")
-    embed.add_field(
-        name=f"Chat for last {check_last_days} days", value=f"{idx + 1} times"
-    )
-
     await context.reply(
         f"Congratulation <@{member.id}>, you're now a {next_role.name}!",
-        embed=embed,
+        embed=generate_congratulation_embed(member, next_role, day, idx + 1),
     )
+
+
+class AssignTask(Cog):
+    def __init__(self, bot: Bot):
+        self.bot = bot
+
+    def cog_unload(self):
+        logger.info("Cog AssignTask stopping.")
+
+    @tasks.loop(minutes=check_interval_minute)
+    async def task(self):
+        server: Guild = await self.bot.get_guild(server_id)
+
+        if not server:
+            logger.critical("Given server ID {} does not exists! Is ID correct and bot exists in server?", server_id)
+            return
+
+        role_target: Role = server.get_role(from_role)
+
+        for member in role_target.members:
+            member: Member
+            await self.check_member(member, server)
+
+    @staticmethod
+    async def check_member(member: Member, server: Guild):
+
+        idx = -1
+
+        target_role: Role = server.get_role(from_role)
+        next_role: Role = server.get_role(new_role)
+        roles: List[Role] = member.roles
+        channels: List[TextChannel] = [ch for ch in server.channels if ch.id in checking_channel_ids]
+        write_target: TextChannel = server.get_channel(notify_at)
+
+        # check if user is already in higher role
+        if next_role in roles:
+            # This also less likely to happen. but just for fail safe.
+            return
+
+        # check if user is assigned to lower role
+        if target_role not in roles:
+            # This won't happen, but just for fail safe.
+            return
+
+        # check joined date
+        if (day := (datetime.now() - member.joined_at).days) < minimum_joined_days:
+            logger.debug(f"User <{member.display_name}> - insufficient join age ({day}/{minimum_joined_days})")
+            return
+
+        for channel in channels:
+            channel: TextChannel
+
+            logger.debug("Checking channel {}", channel.name)
+
+            async for _ in member_chat_history_gen(channel, member, check_last_days):
+                idx += 1
+
+        if idx + 1 >= minimum_chats:
+            await member.remove_roles(target_role)
+            await member.add_roles(next_role)
+        else:
+            logger.debug(
+                f"User <{member.display_name}> - insufficient chats in last {check_last_days}d "
+                f"({minimum_chats - (idx + 1)}/{minimum_chats})"
+            )
+            return
+
+        # write a congratulation for member.
+
+        await write_target.send(
+            f"Congratulation <@{member.id}>! you're now a {next_role.name}!",
+            embed=generate_congratulation_embed(member, next_role, day, idx + 1),
+        )
 
 
 __all__ = [
@@ -132,4 +213,5 @@ __all__ = [
         name="assignable",
         help="Show if user is applicable for assignation",
     ),
+    CogRepresentation(AssignTask)
 ]

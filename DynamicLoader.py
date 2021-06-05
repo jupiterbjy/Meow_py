@@ -4,10 +4,10 @@ Dynamic module re-loader to load modules again.
 
 import pathlib
 import importlib
-from typing import List, Iterable
+from typing import List, Iterable, Union
 from loguru import logger
 
-from BotComponents import CommandRepresentation
+from BotComponents import CommandRepresentation, CogRepresentation
 
 
 FOLDER_NAME = "BotComponents"
@@ -17,7 +17,7 @@ LOADED_LIST = {}
 LOADED_FILE_HASH = {}
 
 
-def load_command() -> List[CommandRepresentation]:
+def load_command() -> List[Union[CommandRepresentation, CogRepresentation]]:
     """
     Dynamically loads command extensions in BotComponents.
 

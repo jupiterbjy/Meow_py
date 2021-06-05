@@ -1,8 +1,11 @@
 {
+  "server_id": 812458585274712075,
   "checking_channel_ids": [812458585924698124, 812458585924698125, 845525174437806120],
+  "notify_at": 812458586131005515,
   "from_role": 812458585274712077,
   "new_role": 812458585274712078,
   "check_last_days": 3,
   "minimum_joined_days": 7,
-  "minimum_chats": 30
+  "minimum_chats": 30,
+  "check_interval_minute": 30
 }
