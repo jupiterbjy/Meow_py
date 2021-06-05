@@ -25,6 +25,7 @@ async def countdown(context: Context, number: int = 5):
 
     if number > 10:
         await context.reply("Can't count more than 10, or I'll be rendered a spam!")
+        return
 
     delta = timedelta(seconds=1)
     last = datetime.now()
