@@ -7,8 +7,9 @@ Modular discord bot that supports dynamic reload of modularized commands.
 import json
 import pathlib
 import argparse
+
 from discord.ext import commands
-from discord import DiscordException, Embed, Game
+from discord import DiscordException, Embed, Game, Intents
 from loguru import logger
 
 from DynamicLoader import load_command, LOADED_LIST
@@ -67,7 +68,7 @@ def assign_basic_commands(bot: commands.bot):
     )
     async def module(context: commands.Context, action="list"):
 
-        logger.info("mMdule [{}] called", action)
+        logger.info("module [{}] called", action)
 
         if action == "reload":
             assign_expansion_commands()
@@ -103,14 +104,18 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    config = json.loads(args.config_path.read_text())
-
     # end of parsing
+
+    intent = Intents.default()
+    intent.members = True
+
+    config = json.loads(args.config_path.read_text())
 
     bot_ = commands.Bot(
         command_prefix="/",
         description=config["help_message"],
         help_command=commands.DefaultHelpCommand(no_category="Commands"),
+        intents=intent
     )
 
     assign_basic_commands(bot_)

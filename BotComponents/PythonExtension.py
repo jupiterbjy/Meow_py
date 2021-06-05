@@ -2,6 +2,8 @@ import pathlib
 import asyncio
 import json
 
+from datetime import datetime
+
 from discord.ext.commands import Context
 from discord import Embed, Colour
 from loguru import logger
@@ -46,7 +48,7 @@ async def run_script(context: Context, *, code: str):
         code = striped.removeprefix("```python").removesuffix("```")
 
     else:
-        await context.reply("Please use ```python\n<code>\n``` format!")
+        await context.reply("Please use \\```python\n<code>\n\\``` format!")
 
     logger.info(
         "Received code from {} by {}\ndetail: {}",
@@ -80,6 +82,9 @@ async def run_script(context: Context, *, code: str):
     # Send code
     send_byte = encode(code)
 
+    # Start time record
+    start_time = datetime.now()
+
     try:
         writer.write(send_byte)
         await asyncio.wait_for(writer.drain(), 15)
@@ -100,6 +105,8 @@ async def run_script(context: Context, *, code: str):
         writer.close()
 
         return
+
+    end_time = datetime.now()
 
     logger.debug("Got response, size {}", len(data))
 
@@ -124,7 +131,9 @@ async def run_script(context: Context, *, code: str):
     color = Colour.from_rgb(122, 196, 92) if not return_code else Colour.from_rgb(196, 92, 92)
 
     # prepare embed
-    embed = Embed(title="Return code", description=str(return_code), colour=color)
+    embed = Embed(colour=color)
+    embed.add_field(name="Return code", value=str(return_code))
+    embed.add_field(name="Duration(with Network)", value=f"{(end_time - start_time).seconds}s")
     embed.set_thumbnail(url=image_url)
 
     await context.reply(resp, embed=embed)
