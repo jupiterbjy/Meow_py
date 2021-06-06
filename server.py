@@ -5,6 +5,9 @@ Only tested to run on raspberry pi, but shouldn't be limited to it only.
 """
 
 import asyncio
+from datetime import timedelta
+
+import daemon
 from loguru import logger
 from sys import executable
 
@@ -13,7 +16,14 @@ end_signature = "\u200a\u200a\u200a"
 end_signature_encoded = end_signature.encode("utf8")
 
 
-# logger.add("server_{time}", rotation="12:00", retention="10 days", compression="zip")
+logger.add(
+    "/home/pyexec/pyexec_{time}.log",
+    level="DEBUG",
+    rotation=timedelta(hours=3),
+    retention="10 days",
+    compression="zip",
+)
+# TODO: convert to versatile and reliable trio event loop, if connecting to asyncio is possible.
 
 
 def encode(string: str):
@@ -28,22 +38,46 @@ def decode(byte_string: bytes):
     return decoded.removeprefix(end_signature)
 
 
-async def handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
+async def try_to_send(writer, bytes_):
+    try:
+        writer.write(bytes_)
+        await asyncio.wait_for(writer.drain(), 10)
 
+    except Exception as err_:
+        logger.critical("Could not send, reason: {}", err_)
+
+    except asyncio.TimeoutError:
+        logger.critical("Reached timeout while sending back. Is connection lost amid?")
+
+    else:
+        logger.info(f"Sent {len(bytes_)}")
+
+
+async def receive(reader):
+    data_ = b""
+
+    while end_signature_encoded not in data_:
+        data_ += await reader.read(1024)
+
+    logger.info(f"Received {len(data_)}")
+
+    return data_
+
+
+async def handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
     logger.debug("Receiving connection.")
 
-    data = b""
-
-    while end_signature_encoded not in data:
-        data += await reader.read(1024)
-
-    logger.info(f"Received {len(data)}")
-
-    decoded = decode(data).strip()
-
-    logger.debug(decoded)
-
     try:
+        data = await receive(reader)
+    except Exception as err_:
+        logger.critical(err_)
+        await try_to_send(writer, encode(str(err_)))
+    else:
+
+        decoded = decode(data).strip()
+
+        logger.debug(decoded)
+
         proc = await asyncio.create_subprocess_exec(
             executable,
             "-c",
@@ -52,38 +86,38 @@ async def handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
             stderr=asyncio.subprocess.PIPE,
         )
 
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), 10)
+        try:
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), 10)
 
-    except asyncio.TimeoutError:
-        send_byte = encode("Reached 10 second timeout limit while executing.")
+        except asyncio.TimeoutError as err_:
+            proc.kill()
+            logger.critical(err_)
+            await try_to_send(
+                writer, encode("Reached 10 second timeout limit while executing.")
+            )
 
-    except Exception as err_:
-        send_byte = encode(str(err_))
+        except Exception as err_:
+            proc.kill()
+            logger.critical(err_)
+            await try_to_send(writer, encode(str(err_)))
 
-    else:
-        output = f"```\n{stdout.decode('utf8')}"
+        else:
+            output = f"```\n{stdout.decode('utf8')}"
 
-        if stderr:
-            output += "\n" + stderr.decode("utf8")
+            if stderr:
+                output += "\n" + stderr.decode("utf8")
 
-        output += f"\n```\nReturn code was {proc.returncode}"
+            output += f"\n```\nReturn code was {proc.returncode}"
 
-        send_byte = encode(output)
+            await try_to_send(writer, encode(output))
 
-    writer.write(send_byte)
+    finally:
 
-    try:
-        await asyncio.wait_for(writer.drain(), 10)
-    except asyncio.TimeoutError:
-        logger.critical("Reached timeout while sending back. Is connection lost amid?")
         writer.close()
-        return
 
-    logger.info(f"Sent {len(send_byte)}")
+        await writer.wait_closed()
 
-    writer.close()
-
-    logger.debug("Connection closed.")
+        logger.debug("Connection closed.")
 
 
 async def main_routine():
@@ -97,8 +131,9 @@ async def main_routine():
         await server.serve_forever()
 
 
-while True:
-    try:
-        asyncio.run(main_routine())
-    except Exception as err:
-        pass
+def main():
+    asyncio.run(main_routine())
+
+
+with daemon.DaemonContext():
+    main()
