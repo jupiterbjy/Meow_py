@@ -24,10 +24,14 @@ def assign_basic_commands(bot: commands.bot):
         assign_expansion_commands()
 
         message = config["startup_message"]
+        channel_id = config["channel_id"]
         activity = config["bot_activity"]
 
-        if message:
-            await bot.get_channel(config["channel_id"]).send(message)
+        if message and channel_id:
+            try:
+                await bot.get_channel().send(message)
+            except Exception as err_:
+                logger.critical(err_)
 
         if activity:
             await bot.change_presence(activity=Game(name=activity))
@@ -123,6 +127,7 @@ if __name__ == "__main__":
 
     intent = Intents.default()
     intent.members = True
+    intent.messages = True
 
     config = json.loads(args.config_path.read_text())
 

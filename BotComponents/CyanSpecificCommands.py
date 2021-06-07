@@ -1,23 +1,25 @@
 import json
 import pathlib
 from datetime import datetime, timezone
-from typing import Union
+from typing import Union, List
 
 from dateutil.parser import isoparse
 from discord.ext.commands import Context
 from discord import Embed, Colour, File, Member, User, Role, Guild, Forbidden
 from loguru import logger
 
-from .RequiredModules.youtube_api_client import GoogleClient
+from .CyanSpecificModule.youtube_api_client import GoogleClient
 from . import CommandRepresentation
 
 
+google_api = ""
+record_absolute_path = ""
+subscription_role_id: int
+yt_channels: List[str]
+
 config_path = pathlib.Path(__file__).with_suffix(".json")
 loaded_config = json.loads(config_path.read_text())
-
-google_api_key = loaded_config["google_api"]
-path_designated = loaded_config["record_absolute_path"]
-sub_role_id = loaded_config["subscription_role_id"]
+locals().update(loaded_config)
 
 
 async def run_literally(context: Context):
@@ -86,16 +88,11 @@ async def get_stream_image_error(context: Context, _):
 
 async def get_latest(context: Context):
 
-    client = GoogleClient(google_api_key)
+    client = GoogleClient(google_api)
 
-    stat_less_main = client.get_latest_videos("UC9wbdkwvYVSgKtOZ3Oov98g", 1)[0]
-    stat_less_sub = client.get_latest_videos("UC9waeFu44i5NwB7x48Tq6Bw", 1)[0]
+    vid_infos = [client.get_latest_videos(id_, 1)[0] for id_ in yt_channels]
 
-    latest = (
-        stat_less_sub
-        if stat_less_main.pub_date < stat_less_sub.pub_date
-        else stat_less_main
-    )
+    latest = sorted(vid_infos, key=lambda x: x.pub_date)[-1]
 
     new_ = client.get_videos_info(latest.video_id)[0]
 
@@ -116,6 +113,7 @@ async def get_latest(context: Context):
 
     embed.add_field(name="Views", value=f"{new_.view_count}")
     embed.add_field(name="Likes", value=f"{new_.like_count}", inline=True)
+    embed.add_field(name="Link", value=f"https://youtu.be/{new_.video_id}")
 
     embed.set_image(url=new_.thumbnail_url(4))
     embed.set_footer(text=diff_str)
@@ -132,7 +130,7 @@ async def subscribe(context: Context):
 
     # get role
     guild: Guild = context.guild
-    role = guild.get_role(sub_role_id)
+    role = guild.get_role(subscription_role_id)
 
     if role in user.roles:
         await context.reply("You're already subscribed to live stream notification!")
@@ -154,7 +152,7 @@ async def unsubscribe(context: Context):
 
     # get role
     guild: Guild = context.guild
-    role: Role = guild.get_role(sub_role_id)
+    role: Role = guild.get_role(subscription_role_id)
 
     if role not in user.roles:
         await context.reply("You're not subscribed to live stream notification!")
@@ -175,7 +173,7 @@ __all__ = [
 ]
 
 # Add if google api is provided
-if google_api_key:
+if google_api:
     __all__.append(
         CommandRepresentation(
             get_stream_image,
@@ -187,8 +185,8 @@ if google_api_key:
     )
 
 # Add if path is provided
-if path_designated:
-    record_path = pathlib.Path(path_designated)
+if record_absolute_path:
+    record_path = pathlib.Path(record_absolute_path)
 
     if not record_path.exists():
         logger.critical("Given record path {} does not exist, skipping.", record_path.as_posix())

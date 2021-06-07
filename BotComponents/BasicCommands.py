@@ -89,7 +89,7 @@ async def joined(context: Context, user_id: int = 0):
 
     embed = Embed(title=f"{member.display_name}", colour=role.color)
 
-    now = datetime.now()
+    now = datetime.utcnow()
     discord_join = TimeDeltaWrap(now - member.created_at)
     member_join = TimeDeltaWrap(now - member.joined_at)
 
