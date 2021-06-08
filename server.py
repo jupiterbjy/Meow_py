@@ -3,24 +3,25 @@
 """
 Only tested to run on raspberry pi, but shouldn't be limited to it only.
 """
+import subprocess
+import itertools
 
-import asyncio
-from datetime import timedelta
+import trio
 
-import daemon
 from loguru import logger
 from sys import executable
 
 
 end_signature = "\u200a\u200a\u200a"
-end_signature_encoded = end_signature.encode("utf8")
+EOF_ = end_signature.encode("utf8")
+TIMEOUT = 10
+COUNTER = itertools.count()
 
 
 logger.add(
-    "/home/pyexec/pyexec_{time}.log",
-    level="DEBUG",
-    rotation=timedelta(hours=3),
-    retention="10 days",
+    "/home/pyexec/py_{time}.log",
+    rotation="5 MB",
+    retention="7 days",
     compression="zip",
 )
 # TODO: convert to versatile and reliable trio event loop, if connecting to asyncio is possible.
@@ -38,102 +39,92 @@ def decode(byte_string: bytes):
     return decoded.removeprefix(end_signature)
 
 
-async def try_to_send(writer, bytes_):
+async def try_to_send(stream: trio.SocketStream, bytes_, ident):
+    logger.debug("[{}] Sending back {} bytes", ident, len(bytes_))
     try:
-        writer.write(bytes_)
-        await asyncio.wait_for(writer.drain(), 10)
+        await stream.send_all(bytes_)
 
     except Exception as err_:
-        logger.critical("Could not send, reason: {}", err_)
-
-    except asyncio.TimeoutError:
-        logger.critical("Reached timeout while sending back. Is connection lost amid?")
-
+        logger.critical("[{}] Could not send, reason: {}", ident, err_)
     else:
-        logger.info(f"Sent {len(bytes_)}")
+        logger.info("[{}] Sent {}", ident, len(bytes_))
 
 
-async def receive(reader):
+async def receive(stream: trio.SocketStream, ident):
     data_ = b""
 
-    while end_signature_encoded not in data_:
-        data_ += await reader.read(1024)
+    logger.debug("[{}] Receiving", ident)
 
-    logger.info(f"Received {len(data_)}")
+    while not data_.endswith(EOF_):
+        data_ += await stream.receive_some()
+
+    logger.info("[{}] Received {}", ident, len(data_))
 
     return data_
 
 
-async def handler(reader: asyncio.StreamReader, writer: asyncio.StreamWriter):
-    logger.debug("Receiving connection.")
+async def handler(stream: trio.SocketStream):
+    ident = next(COUNTER)
+    logger.debug("[{}] Receiving connection.", ident)
 
+    # trio will fail when handler raises exception.
+    # need to prevent it to keep server working, in case for unexpected
     try:
-        data = await receive(reader)
-    except Exception as err_:
-        logger.critical(err_)
-        await try_to_send(writer, encode(str(err_)))
-    else:
-
-        decoded = decode(data).strip()
-
-        logger.debug(decoded)
-
-        proc = await asyncio.create_subprocess_exec(
-            executable,
-            "-c",
-            decoded,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-        )
-
         try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), 10)
-
-        except asyncio.TimeoutError as err_:
-            proc.kill()
-            logger.critical(err_)
-            await try_to_send(
-                writer, encode("Reached 10 second timeout limit while executing.")
-            )
-
+            data = await receive(stream, ident)
         except Exception as err_:
-            proc.kill()
             logger.critical(err_)
-            await try_to_send(writer, encode(str(err_)))
+            await try_to_send(stream, encode(str(err_)), ident)
 
         else:
-            output = f"```\n{stdout.decode('utf8')}"
 
-            if stderr:
-                output += "\n" + stderr.decode("utf8")
+            decoded = decode(data).strip()
 
-            output += f"\n```\nReturn code was {proc.returncode}"
+            logger.debug("[{}] Executing code: \n{}", ident, decoded)
 
-            await try_to_send(writer, encode(output))
+            try:
+                with trio.fail_after(TIMEOUT):
+                    proc = await trio.run_process(
+                        [executable, "-c", decoded],
+                        capture_stdout=True,
+                        stderr=subprocess.STDOUT,
+                        check=False,
+                    )
 
-    finally:
+            except trio.TooSlowError:
+                logger.critical("[{}] Got timeout executing script.", ident)
+                await try_to_send(
+                    stream,
+                    encode(f"Reached {TIMEOUT} seconds timeout limit while executing."),
+                    ident
+                )
 
-        writer.close()
+            except Exception as err_:
+                logger.critical("[{}] Got an error.\nDetails: {}", ident, err_)
+                await try_to_send(stream, encode(str(err_)), ident)
 
-        await writer.wait_closed()
+            else:
+                stdout = proc.stdout
 
-        logger.debug("Connection closed.")
+                return_code = f"Return code was {proc.returncode}"
+                output = (
+                    f"```\n{stdout.decode('utf8')}```\n{return_code}"
+                    if stdout
+                    else return_code
+                )
+
+                await try_to_send(stream, encode(output), ident)
+
+        finally:
+            await stream.send_eof()
+            logger.debug("[{}] Connection closed.", ident)
+    except Exception as err_:
+        logger.critical("[{}] Handler failed!\nDetail: {}", ident, err_)
 
 
 async def main_routine():
-    server = await asyncio.start_server(handler, port=8123)
-
-    address = server.sockets[0].getsockname()
-
-    logger.info(f"Serving on {address}")
-
-    async with server:
-        await server.serve_forever()
+    logger.info(f"Server starting.")
+    await trio.serve_tcp(handler, 8123, task_status=trio.TASK_STATUS_IGNORED)
 
 
-def main():
-    asyncio.run(main_routine())
-
-
-with daemon.DaemonContext():
-    main()
+trio.run(main_routine)
