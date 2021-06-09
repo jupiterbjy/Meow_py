@@ -12,8 +12,9 @@
     "757313446730793101": {
         "from_role": 812458585274712077,
         "new_role": 812458585274712078,
-        "minimum_joined_days": 7,
-        "minimum_chats": 30
-    }
+        "minimum_joined_days": 3,
+        "minimum_chats": 15
+    },
+    "test_mode": true
   }
 }

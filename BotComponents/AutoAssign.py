@@ -1,5 +1,6 @@
 import pathlib
 import json
+import sqlite3
 from datetime import datetime, timedelta
 from typing import Dict, Union, Any
 
@@ -23,7 +24,9 @@ server_settings: Dict[str, dict] = loaded_config["server_settings"]
 server_settings = {int(key): val for key, val in server_settings.items()}
 
 
-async def chat_history_gen(guild: Guild, from_date: datetime, to_date: datetime):
+async def chat_history_gen(
+    guild: Guild, from_date: Union[datetime, None], to_date: datetime
+):
 
     for channel in guild.text_channels:
 
@@ -38,9 +41,7 @@ def generate_congratulation_embed(member: Member, next_role: Role, day, count):
 
     embed.set_thumbnail(url=str(member.avatar_url))
     embed.add_field(name="Member for", value=f"{day} days")
-    embed.add_field(
-        name=f"Messages sent", value=f"{count} times"
-    )
+    embed.add_field(name=f"Messages sent", value=f"{count} times")
 
     return embed
 
@@ -59,15 +60,75 @@ class TimeDeltaWrap:
         return f"{hour}h {minute}m {seconds}s"
 
 
-class JsonDataHandler:
-    _server_data = {}
+class DBWrapper:
+    def __init__(self, db_path):
+        self.con = sqlite3.connect(db_path)
+        self.cursor = self.con.cursor()
+
+        self.con.execute(
+            "CREATE TABLE IF NOT EXISTS ACCUMULATION(user_id INTEGER PRIMARY KEY, counter INTEGER, access DOUBLE)"
+        )
+
+        self.last_access = 1.0 if self.is_emtpy else self.get_last_access()
+
+    def count_up(self, message: Message):
+        user_id = message.author.id
+
+        if self.user_exists(user_id):
+            self.con.execute(
+                "UPDATE ACCUMULATION SET counter = counter + 1, access = ? WHERE ?",
+                (message.created_at.timestamp(), user_id),
+            )
+        else:
+            self.con.execute(
+                "INSERT INTO ACCUMULATION(user_id, counter, access) VALUES(?, ?, ?)",
+                (user_id, 1, message.created_at.timestamp())
+            )
+
+    def get_last_access(self) -> Union[float, None]:
+
+        self.cursor.execute("SELECT MAX(access) FROM ACCUMULATION")
+
+        return self.cursor.fetchone()[0]
+
+    def get_user_counter(self, user_id: int) -> int:
+        if self.user_exists(user_id):
+            self.cursor.execute("SELECT counter FROM ACCUMULATION WHERE ?", (user_id,))
+            return self.cursor.fetchone()[0]
+
+        return 0
+
+    def user_exists(self, user_id: int) -> bool:
+
+        self.cursor.execute(
+            "SELECT EXISTS(SELECT 1 FROM ACCUMULATION WHERE user_id=?)", (user_id,)
+        )
+
+        return bool(self.cursor.fetchone()[0])
+
+    @property
+    def is_emtpy(self) -> bool:
+
+        self.cursor.execute("SELECT EXISTS(SELECT 1 FROM ACCUMULATION)")
+
+        return not self.cursor.fetchone()[0]
+
+    def flush(self):
+        self.con.commit()
+
+    def __del__(self):
+        self.con.close()
+
+
+class DataHandler:
+    dbs: Dict[int, DBWrapper] = {}
+
     _server_ids = set(map(int, server_settings.keys()))
-    _server_data_paths = {}
     prepared = False
 
     @classmethod
     def show_count(cls, server_id, user_id) -> int:
-        return cls._server_data[server_id]["data"][user_id]
+        return cls.dbs[server_id].get_user_counter(user_id)
 
     @classmethod
     def count_up(cls, message: Message) -> bool:
@@ -81,17 +142,12 @@ class JsonDataHandler:
         user_id = message.author.id
 
         try:
-            target_server = cls._server_data[server_id]
+            target_server = cls.dbs[server_id]
         except KeyError:
             logger.warning("Got message from unlisted server {}, ignoring.", server_id)
             return False
 
-        try:
-            target_server["data"][user_id] += 1
-        except KeyError:
-            target_server["data"][user_id] = 1
-
-        target_server["timestamp"] = message.created_at
+        target_server.count_up(user_id)
 
         return True
 
@@ -99,94 +155,49 @@ class JsonDataHandler:
     def load(cls):
 
         for server_id in cls._server_ids:
-            logger.debug("Checking server {} data.", server_id)
-
-            path_ = cache_path.joinpath(f"{server_id}_counter").with_suffix(".json")
-            cls._server_data_paths[server_id] = path_
-
-            temporary_dict = {"timestamp": oldest_timestamp_check, "data": {}}
-
-            try:
-                path_.touch(exist_ok=False)
-
-            except PermissionError:
-                logger.critical("No permission to touch at {}.\n"
-                                "Change directory/file's permission or data won't be saved on exit!", cache_path)
-            except FileExistsError:
-                logger.debug("Previous data found. Attempting to load.")
-
-                try:
-                    loaded = json.loads(path_.read_text())
-                except Exception as err_:
-                    logger.critical("Failed to load {}.\nFile may get overwritten afterward!\nReason: {}", path_, err_)
-                else:
-                    loaded["data"] = {int(k): v for k, v in loaded["data"].items()}
-                    temporary_dict = loaded
-            else:
-                logger.info("Creating new empty record for server {}.", server_id)
-
-            cls._server_data[server_id] = temporary_dict
+            path_ = cache_path.joinpath(f"{server_id}_counter").with_suffix(".db")
+            cls.dbs[server_id] = DBWrapper(path_)
 
     @classmethod
     def write(cls):
 
-        if not cls._server_data:
-            return
-
-        for server_id, path_ in cls._server_data_paths.items():
-            path_: pathlib.Path
-
-            if not cls._server_data[server_id]["data"]:
-                logger.info("No data in {}, skipping write.", server_id)
-                continue
-
-            target = cls._server_data[server_id]
-
-            try:
-                path_.write_text(json.dumps(target))
-
-            except PermissionError:
-                logger.critical("No permission to write at {}.\n"
-                                "Change directory/file's permission or data won't be saved on exit!", cache_path)
-
-            except Exception as err_:
-                logger.critical("Unknown Error occurred.\nDetail:{}", err_)
-
-            else:
-                logger.info("Record for server {} written.", server_id)
+        for server_id, db_ in cls.dbs.items():
+            db_.flush()
 
     @classmethod
-    async def catch_up(cls, bot: Bot):
+    async def catch_up(cls, bot: Bot, start_time):
         # hold on, this will be really really expensive!
 
-        for server_id in cls._server_ids:
+        for server_id, db in cls.dbs.items():
             server: Guild = bot.get_guild(server_id)
 
             if server is None:
                 logger.debug("Bot is not a part of server '{}', ignoring.", server_id)
                 continue
 
-            timestamp = cls._server_data[server_id]["timestamp"]
+            timestamp = db.get_last_access()
 
-            logger.debug("Catching up server '{}', ts {}", server, timestamp)
+            if timestamp:
+                logger.debug("Catching up server '{}', from ts {}", server, timestamp)
 
-            # get each server's catchup times
-
-            # already timestamp is set to utc(past), it will loose yet another offset
-            time_ = datetime.fromtimestamp(timestamp) if timestamp else server.created_at
+                # already timestamp is set to utc(past), no need for utc
+                time_ = (
+                    datetime.fromtimestamp(timestamp) if timestamp else server.created_at
+                )
+            else:
+                logger.debug("Catching up server '{}', from oldest history.", server)
+                time_ = None
 
             counter = 0
-            async for message in chat_history_gen(server, time_, cls._loaded_time):
-                JsonDataHandler.count_up(message)
+            async for message in chat_history_gen(server, time_, start_time):
+                DataHandler.count_up(message)
                 counter += 1
 
             logger.debug("Fetched {} and added new messages.", counter)
 
-    _loaded_time = datetime.utcnow()
 
-
-async def debug_data(context: Context):
-    await context.reply(f"```json\n{json.dumps(JsonDataHandler._server_data, indent=2)}\n```")
+# async def debug_data(context: Context):
+#     await context.reply(f"```json\n{json.dumps(JsonDataHandler._server_data, indent=2)}\n```")
 
 
 async def member_stat(context: Context):
@@ -215,7 +226,10 @@ async def member_stat(context: Context):
     if premium:
         embed.add_field(name="Boost since", value=f"{premium}")
 
-    embed.add_field(name="Messages sent", value=f"{JsonDataHandler.show_count(context.guild.id, member.id)}")
+    embed.add_field(
+        name="Messages sent",
+        value=f"{DataHandler.show_count(context.guild.id, member.id)}",
+    )
 
     embed.set_footer(text=f"Primary role - {role.name}")
     embed.set_thumbnail(url=str(thumb))
@@ -231,9 +245,11 @@ async def on_message_trigger(message: Message):
         return
 
     try:
-        assert JsonDataHandler.count_up(message)
+        assert DataHandler.count_up(message)
     except AttributeError:
-        logger.warning("Got a PM from {}, content: {}", member.display_name, message.content)
+        logger.warning(
+            "Got a PM from {}, content: {}", member.display_name, message.content
+        )
         return
     except AssertionError:
         logger.warning("Got a message from unlisted server {}, ignoring.", guild.id)
@@ -242,7 +258,9 @@ async def on_message_trigger(message: Message):
     config = server_settings[guild.id]
 
     # check member age first
-    if (day := (datetime.utcnow() - member.joined_at).days) < config["minimum_joined_days"]:
+    if (day := (datetime.utcnow() - member.joined_at).days) < config[
+        "minimum_joined_days"
+    ]:
         return
 
     # then check if member is new member
@@ -253,7 +271,7 @@ async def on_message_trigger(message: Message):
         return
 
     # then check how much comment he made in server
-    comments_count = JsonDataHandler.show_count(guild.id, member.id)
+    comments_count = DataHandler.show_count(guild.id, member.id)
 
     if comments_count < config["minimum_chats"]:
         return
@@ -280,36 +298,38 @@ class AssignCog(Cog):
     def cog_unload(self):
         logger.info("[AssignCog] stopping.")
         self.task.cancel()
-        JsonDataHandler.write()
+        DataHandler.write()
 
     @tasks.loop(count=1)
     async def callable_wrapper(self):
 
         logger.info("[AssignCog] Catching up missing accumulation.")
-        await JsonDataHandler.catch_up(self.bot)
+        await DataHandler.catch_up(self.bot, datetime.utcnow())
 
         logger.info("[AssignCog] All loaded up!")
-        JsonDataHandler.prepared = True
+        DataHandler.prepared = True
 
     @callable_wrapper.before_loop
     async def load(self):
         logger.info("[AssignCog] Loading up stored data.")
-        JsonDataHandler.load()
+        DataHandler.load()
 
     @tasks.loop(minutes=save_interval)
     async def task(self):
-        if JsonDataHandler.prepared:
+        if DataHandler.prepared:
             logger.info("[AssignCog] saving comment accumulation.")
-            JsonDataHandler.write()
+            DataHandler.write()
 
     def __del__(self):
         logger.info("[AssignCog] saving comment accumulation.")
-        JsonDataHandler.write()
+        DataHandler.write()
 
 
 __all__ = [
     CogRepresentation(AssignCog),
     EventRepresentation(on_message_trigger, "on_message"),
-    CommandRepresentation(member_stat, name="stat", help="Shows your stats in this server."),
-    CommandRepresentation(debug_data, name="debug_data", help="in pain")
+    CommandRepresentation(
+        member_stat, name="stat", help="Shows your stats in this server."
+    ),
+    # CommandRepresentation(debug_data, name="debug_data", help="in pain")
 ]
