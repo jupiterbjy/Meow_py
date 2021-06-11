@@ -24,7 +24,6 @@ logger.add(
     retention="7 days",
     compression="zip",
 )
-# TODO: convert to versatile and reliable trio event loop, if connecting to asyncio is possible.
 
 
 def encode(string: str):

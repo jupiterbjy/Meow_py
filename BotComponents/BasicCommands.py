@@ -1,5 +1,6 @@
 import asyncio
 from datetime import datetime, timedelta
+from typing import Union
 
 from discord.ext.commands import Context
 from discord import Embed, Member, Role, Asset
@@ -66,28 +67,17 @@ async def member_chat_history_gen(channel, target_member: Member, max_date=3):
         yield message
 
 
-async def joined(context: Context, user_id: int = 0):
-
-    logger.info("call on joined with user_id: {}", user_id)
-
-    if not user_id:
-        member: Member = context.author
-    else:
-        member: Member = context.guild.get_member(user_id)
-
+def discord_stat_embed_gen(member: Member):
     try:
-        role: Role = member.top_role
+        role = member.top_role
     except AttributeError:
-        logger.warning("Could not find user. Is intent enabled?\nCached Member list: {}", context.guild.members)
+        role = None
 
-        await context.reply(
-            "Either member does not exist or Member Intent is disabled for me, I can't find that member."
-        )
-        return
+    role: Union[Role, None]
 
     thumb: Asset = member.avatar_url
 
-    embed = Embed(title=f"{member.display_name}", colour=role.color)
+    embed = Embed(title=f"{member.display_name}", colour=role.color if role else None)
 
     now = datetime.utcnow()
     discord_join = TimeDeltaWrap(now - member.created_at)
@@ -104,10 +94,24 @@ async def joined(context: Context, user_id: int = 0):
     if premium:
         embed.add_field(name="Boost since", value=f"{premium}")
 
-    embed.set_footer(text=f"Primary role - {role.name}")
+    if role:
+        embed.set_footer(text=f"Primary role - {role.name}")
+
     embed.set_thumbnail(url=str(thumb))
 
-    await context.reply(embed=embed)
+    return embed
+
+
+async def joined(context: Context, user_id: int = 0):
+
+    logger.info("call on joined with user_id: {}", user_id)
+
+    if not user_id:
+        member: Member = context.author
+    else:
+        member: Member = context.guild.get_member(user_id)
+
+    await context.reply(embed=discord_stat_embed_gen(member))
 
 
 __all__ = [
