@@ -9,7 +9,7 @@ import pathlib
 import argparse
 
 from discord.ext import commands
-from discord import DiscordException, Embed, Game, Intents
+from discord import DiscordException, Embed, Game, Intents, Member
 from loguru import logger
 
 from DynamicLoader import load_command, LOADED_LIST
@@ -79,10 +79,15 @@ def assign_basic_commands(bot: commands.bot):
     )
     async def module(context: commands.Context, action="list"):
 
-        logger.info("module [{}] called", action)
+        logger.info("[{}] called", action)
+        member: Member = context.author
 
         if action == "reload":
-            assign_expansion_commands()
+            if member.id in config["reload_whitelist"]:
+                logger.warning("Authorised reload call from '{}'", member.display_name)
+                assign_expansion_commands()
+            else:
+                logger.warning("Unauthorised reload call from '{}'", member.display_name)
 
         if action in ("reload", "list"):
             embed = Embed(

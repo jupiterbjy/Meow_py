@@ -92,7 +92,7 @@ def discord_stat_embed_gen(member: Member):
     embed.add_field(name="Server joined", value=f"{member_join}")
 
     if premium:
-        embed.add_field(name="Boost since", value=f"{premium}")
+        embed.add_field(name="Boost for", value=f"{premium}")
 
     if role:
         embed.set_footer(text=f"Primary role - {role.name}")

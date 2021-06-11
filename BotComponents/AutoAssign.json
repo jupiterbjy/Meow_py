@@ -1,6 +1,6 @@
 {
   "db_path": "AutoAssignDB",
-  "save_interval_minute": 30,
+  "save_interval_minute": 2,
   "oldest_timestamp_check": 0,
   "server_settings": {
     "812458585274712075": {

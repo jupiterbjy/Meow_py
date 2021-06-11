@@ -6,7 +6,7 @@ from typing import Dict, Union, Any
 
 from discord.ext import tasks
 from discord.ext.commands import Cog, Bot, Context
-from discord import Embed, Member, Role, Guild, Message, Asset
+from discord import Embed, Member, Role, Guild, Message, Asset, errors
 from loguru import logger
 
 from . import EventRepresentation, CogRepresentation, CommandRepresentation
@@ -38,10 +38,13 @@ async def chat_history_gen(
     for channel in guild.text_channels:
 
         message: Message
-        async for message in channel.history(after=from_date, before=to_date, limit=None, oldest_first=False):
+        try:
+            async for message in channel.history(after=from_date, before=to_date, limit=None, oldest_first=False):
 
-            if not message.author.bot:
-                yield message
+                if not message.author.bot:
+                    yield message
+        except errors.Forbidden:
+            logger.warning("Cannot access to channel '{}' - ID: {}", channel.name, channel.id)
 
 
 def discord_stat_embed_gen(member: Member):
@@ -69,7 +72,7 @@ def discord_stat_embed_gen(member: Member):
     embed.add_field(name="Server joined", value=f"{member_join}")
 
     if premium:
-        embed.add_field(name="Boost since", value=f"{premium}")
+        embed.add_field(name="Boost for", value=f"{premium}")
 
     if role:
         embed.set_footer(text=f"Primary role - {role.name}")
@@ -366,6 +369,13 @@ async def trigger_catchup(context: Context):
     await DataHandler.catch_up(context.bot)
 
 
+async def flush_db(_: Context):
+
+    logger.info("[{}] called", NAME)
+
+    DataHandler.write()
+
+
 class AssignCog(Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
@@ -401,7 +411,6 @@ class AssignCog(Cog):
             DataHandler.write()
 
     def __del__(self):
-        logger.info("[AssignCog] saving comment accumulation.")
         DataHandler.write()
 
 
@@ -411,5 +420,6 @@ __all__ = [
     CommandRepresentation(
         member_stat, name="stat", help="Shows your stats in this server."
     ),
-    CommandRepresentation(trigger_catchup, name="catchup", help="Manually triggers message catchup.")
+    CommandRepresentation(trigger_catchup, name="catchup", help="Manually triggers message catchup."),
+    CommandRepresentation(flush_db, name="flushdb", help="Manually commit changes to db.")
 ]
