@@ -132,11 +132,14 @@ if __name__ == "__main__":
     config = json.loads(args.config_path.read_text())
 
     bot_ = commands.Bot(
-        command_prefix="/",
+        command_prefix="//",
         description=config["help_message"],
         help_command=commands.DefaultHelpCommand(no_category="Commands"),
         intents=intent,
     )
+
+    # log config
+    logger.add("./log/{time}.log", rotation="5MB", retention="7 days", compression="zip")
 
     assign_basic_commands(bot_)
 

@@ -14,14 +14,18 @@ from . import EventRepresentation, CogRepresentation, CommandRepresentation
 
 NAME = __name__
 
-
+# config loading
 config_path = pathlib.Path(__file__).with_suffix(".json")
 loaded_config = json.loads(config_path.read_text())
 
-cache_path = pathlib.Path(__file__).parent.joinpath(loaded_config["cache_path"])
+db_path = pathlib.Path(__file__).parent.joinpath(loaded_config["db_path"])
 save_interval = loaded_config["save_interval_minute"]
 oldest_timestamp_check = loaded_config["oldest_timestamp_check"]
 server_settings: Dict[str, dict] = loaded_config["server_settings"]
+
+# Test directory. Error will be caught from main bot so that's fine.
+db_path.mkdir(exist_ok=True)
+
 
 # convert server settings key to number
 server_settings = {int(key): val for key, val in server_settings.items()}
@@ -34,8 +38,10 @@ async def chat_history_gen(
     for channel in guild.text_channels:
 
         message: Message
-        async for message in channel.history(after=from_date, before=to_date, limit=None):
-            yield message
+        async for message in channel.history(after=from_date, before=to_date, limit=None, oldest_first=False):
+
+            if not message.author.bot:
+                yield message
 
 
 def discord_stat_embed_gen(member: Member):
@@ -99,15 +105,15 @@ class TimeDeltaWrap:
 
 
 class DBWrapper:
-    def __init__(self, db_path):
-        self.con = sqlite3.connect(db_path)
+    def __init__(self, db_path_):
+        self.con = sqlite3.connect(db_path_)
         self.cursor = self.con.cursor()
 
         self.con.execute(
             "CREATE TABLE IF NOT EXISTS ACCUMULATION(user_id INTEGER PRIMARY KEY, counter INTEGER, access DOUBLE)"
         )
 
-        self.last_access = 1.0 if self.is_emtpy else self.get_last_access()
+        self.last_access = 1.0 if self.is_emtpy else self.get_last_timestamp()
 
     def count_up(self, message: Message):
         user_id = message.author.id
@@ -124,11 +130,15 @@ class DBWrapper:
                 (user_id, 1, timestamp),
             )
 
-    def get_last_access(self) -> Union[float, None]:
+    def get_last_timestamp(self) -> float:
 
         self.cursor.execute("SELECT MAX(access) FROM ACCUMULATION")
 
-        return self.cursor.fetchone()[0]
+        output = self.cursor.fetchone()[0]
+        return output if output else 0
+
+    def get_last_datetime(self) -> datetime:
+        return datetime.fromtimestamp(self.get_last_timestamp())
 
     def get_user_counter(self, user_id: int) -> int:
         if self.user_exists(user_id):
@@ -162,6 +172,7 @@ class DBWrapper:
 
 class DataHandler:
     dbs: Dict[int, DBWrapper] = {}
+    catchup_running = False
 
     _server_ids = set(map(int, server_settings.keys()))
     prepared = False
@@ -196,7 +207,7 @@ class DataHandler:
     def load(cls):
 
         for server_id in cls._server_ids:
-            path_ = cache_path.joinpath(f"{server_id}_counter").with_suffix(".db")
+            path_ = db_path.joinpath(f"{server_id}_counter").with_suffix(".db")
             cls.dbs[server_id] = DBWrapper(path_)
 
     @classmethod
@@ -206,8 +217,13 @@ class DataHandler:
             db_.flush()
 
     @classmethod
-    async def catch_up(cls, bot: Bot, start_time):
+    async def catch_up(cls, bot: Bot):
         # hold on, this will be really really expensive!
+
+        if cls.catchup_running:
+            return
+
+        cls.catchup_running = True
 
         for server_id, db in cls.dbs.items():
             server: Guild = bot.get_guild(server_id)
@@ -217,33 +233,43 @@ class DataHandler:
                 )
                 continue
 
-            timestamp = db.get_last_access()
+            timestamp = db.get_last_timestamp()
 
-            if timestamp:
-                logger.debug(
-                    "[{}] Catching up server '{}', from ts {}", NAME, server, timestamp
-                )
-
-                # already timestamp is set to utc(past), no need for utc
-                time_ = (
-                    datetime.fromtimestamp(timestamp)
-                )
-            else:
-                logger.debug(
-                    "[{}] Catching up server '{}', from oldest history.", NAME, server
-                )
+            if not timestamp:
                 time_ = server.created_at
+            else:
+                time_ = datetime.fromtimestamp(timestamp)
+
+            logger.debug(
+                "[{}] Catching up server '{}', from ts {}", NAME, server, timestamp
+            )
 
             counter = 0
-            async for message in chat_history_gen(server, time_, start_time):
+            iterator = chat_history_gen(server, time_, datetime.utcnow())
 
-                # if message.created_at.timestamp() == timestamp:
-                #     continue
+            try:
+                first_msg = await iterator.__anext__()
+            except StopAsyncIteration:
+                pass
+            else:
 
-                DataHandler.count_up(message)
-                counter += 1
+                # check if first message is already recorded
+                if first_msg.created_at.timestamp() != db.get_last_timestamp():
+                    logger.debug("Got timestamp diff, ")
+                    counter += 1
+                    DataHandler.count_up(first_msg)
+
+                async for message in iterator:
+
+                    # if message.created_at.timestamp() == timestamp:
+                    #     continue
+
+                    DataHandler.count_up(message)
+                    counter += 1
 
             logger.debug("[{}] Fetched {} and added new messages.", NAME, counter)
+
+        cls.catchup_running = False
 
 
 # async def debug_data(context: Context):
@@ -252,7 +278,7 @@ class DataHandler:
 
 async def member_stat(context: Context):
 
-    logger.info("[{}] stat called", NAME)
+    logger.info("[{}] called", NAME)
     member: Member = context.author
 
     embed = discord_stat_embed_gen(member)
@@ -333,6 +359,13 @@ async def on_message_trigger(message: Message):
     )
 
 
+async def trigger_catchup(context: Context):
+
+    logger.info("[{}] called", NAME)
+
+    await DataHandler.catch_up(context.bot)
+
+
 class AssignCog(Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
@@ -351,7 +384,7 @@ class AssignCog(Cog):
     async def callable_wrapper(self):
 
         logger.info("[AssignCog] Catching up missing accumulation.")
-        await DataHandler.catch_up(self.bot, datetime.utcnow())
+        await DataHandler.catch_up(self.bot)
 
         logger.info("[AssignCog] All loaded up!")
         DataHandler.prepared = True
@@ -378,5 +411,5 @@ __all__ = [
     CommandRepresentation(
         member_stat, name="stat", help="Shows your stats in this server."
     ),
-    # CommandRepresentation(debug_data, name="debug_data", help="in pain")
+    CommandRepresentation(trigger_catchup, name="catchup", help="Manually triggers message catchup.")
 ]

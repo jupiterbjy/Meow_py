@@ -1,5 +1,5 @@
 {
-  "cache_path": "CyanSpecificModule",
+  "db_path": "AutoAssignDB",
   "save_interval_minute": 30,
   "oldest_timestamp_check": 0,
   "server_settings": {
@@ -11,8 +11,8 @@
       "test_mode": true
     },
     "757313446730793101": {
-      "from_role": 812458585274712077,
-      "new_role": 812458585274712078,
+      "from_role": 783181261585121280,
+      "new_role": 783151859652493332,
       "minimum_joined_days": 3,
       "minimum_chats": 15,
       "test_mode": true
