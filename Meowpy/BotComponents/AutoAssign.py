@@ -1,3 +1,8 @@
+"""
+Auto assign module.
+"""
+
+
 import pathlib
 import json
 import sqlite3

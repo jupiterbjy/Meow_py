@@ -68,6 +68,6 @@ You can also type /help category for more info on a category.
       CommandRepresentation(another_command, name="your_own_command", help="help_message")
   ]
   ```
-  Any script containing `__all__` list with [`CommandRepresentaion`](BotComponents/__init__.py) class will be loaded dynamically upon reload call.
+  Any script containing `__all__` list with [`CommandRepresentaion`](Meowpy/BotComponents/__init__.py) class will be loaded dynamically upon reload call.
 
 All other commands are not built-in. Documentation on those are currently WIP.
