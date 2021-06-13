@@ -15,7 +15,7 @@ linux_info_command = (
 )
 
 shell_field_commands = {
-    "CPU / RAM": '''echo CPU `lscpu | grep 'CPU MHz' | awk -F : '{gsub(/ /,""); print $2}'` MHz \| RAM `free -m | awk '/Mem:/ { printf("%3.1f%%", $3/$2*100) }'`"''',
+    "CPU / RAM": '''echo CPU `lscpu | grep 'CPU MHz' | awk -F : '{gsub(/ /,""); print $2}'` MHz \| RAM `free -m | awk '/Mem:/ { printf("%3.1f%%", $3/$2*100) }'`''',
     "CPU Model": """cat /proc/cpuinfo | awk -F : '/model name/ {print $2}' | head -1 | xargs""",
     "Disk usage": """df -lh --total -x tmpfs | tail -1 | awk ' {print "Total", $2, "| Used", $3, "| Free", $4 }'""",
 }

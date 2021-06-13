@@ -14,7 +14,7 @@ from .. import CommandRepresentation
 
 google_api = ""
 record_absolute_path = ""
-subscription_role_id: int
+subscription_role_id: int = 0
 yt_channels: List[str]
 
 config_path = pathlib.Path(__file__).parent.joinpath("config.json")
@@ -168,9 +168,15 @@ async def unsubscribe(context: Context):
 
 __all__ = [
     CommandRepresentation(run_literally, name="run", help="Run cyan run!"),
-    CommandRepresentation(subscribe, name="sub", help="Subscribe to live stream notification"),
-    CommandRepresentation(unsubscribe, name="unsub", help="Unsubscribe from live stream notification")
 ]
+
+if subscription_role_id:
+    __all__.extend(
+        (
+            CommandRepresentation(subscribe, name="sub", help="Subscribe to live stream notification"),
+            CommandRepresentation(unsubscribe, name="unsub", help="Unsubscribe from live stream notification")
+        )
+    )
 
 # Add if google api is provided
 if google_api:

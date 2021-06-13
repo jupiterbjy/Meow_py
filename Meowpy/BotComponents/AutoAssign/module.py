@@ -192,7 +192,7 @@ class DBWrapper:
 
     def flush(self):
         self.con.commit()
-        logger.info("[{}] DB commit done", NAME)
+        # logger.info("[{}] DB commit done", NAME)
 
     def close(self):
         self.flush()
