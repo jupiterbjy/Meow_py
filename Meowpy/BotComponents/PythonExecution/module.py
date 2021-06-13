@@ -8,14 +8,14 @@ from discord.ext.commands import Context
 from discord import Embed, Colour
 from loguru import logger
 
-from . import CommandRepresentation
+from .. import CommandRepresentation
 
 
 codec = "utf8"
 end_signature = "\u200a\u200a\u200a"
 end_signature_encoded = end_signature.encode(codec)
 
-config_path = pathlib.Path(__file__).with_suffix(".json")
+config_path = pathlib.Path(__file__).parent.joinpath("config.json")
 config = json.loads(config_path.read_text())
 
 

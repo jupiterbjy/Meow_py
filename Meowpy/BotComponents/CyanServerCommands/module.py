@@ -8,8 +8,8 @@ from discord.ext.commands import Context
 from discord import Embed, Colour, File, Member, User, Role, Guild, Forbidden
 from loguru import logger
 
-from .CyanSpecificModule.youtube_api_client import GoogleClient
-from . import CommandRepresentation
+from .youtube_api_client import GoogleClient
+from .. import CommandRepresentation
 
 
 google_api = ""
@@ -17,7 +17,7 @@ record_absolute_path = ""
 subscription_role_id: int
 yt_channels: List[str]
 
-config_path = pathlib.Path(__file__).with_suffix(".json")
+config_path = pathlib.Path(__file__).parent.joinpath("config.json")
 loaded_config = json.loads(config_path.read_text())
 locals().update(loaded_config)
 

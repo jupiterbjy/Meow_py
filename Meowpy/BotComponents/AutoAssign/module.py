@@ -1,44 +1,52 @@
 """
 Auto assign module.
-"""
 
+"""
 
 import pathlib
 import json
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Dict, Union, Any
+from typing import Dict, Union, Any, AsyncGenerator
 
 from discord.ext import tasks
 from discord.ext.commands import Cog, Bot, Context
 from discord import Embed, Member, Role, Guild, Message, Asset, errors
 from loguru import logger
 
-from . import EventRepresentation, CogRepresentation, CommandRepresentation
+from .. import EventRepresentation, CogRepresentation, CommandRepresentation
 
 
-NAME = __name__
+# --------------------------------------
+# Global Variable setup and Config loading
 
 # config loading
-config_path = pathlib.Path(__file__).with_suffix(".json")
+config_path = pathlib.Path(__file__).parent.joinpath("config.json")
 loaded_config = json.loads(config_path.read_text())
 
-db_path = pathlib.Path(__file__).parent.joinpath(loaded_config["db_path"])
-save_interval = loaded_config["save_interval_minute"]
-oldest_timestamp_check = loaded_config["oldest_timestamp_check"]
-server_settings: Dict[str, dict] = loaded_config["server_settings"]
-
-# Test directory. Error will be caught from main bot so that's fine.
-db_path.mkdir(exist_ok=True)
-
+DB_PATH = pathlib.Path(__file__).parent.joinpath(loaded_config["db_path"])
+SAVE_INTERVAL = loaded_config["save_interval_minute"]
+OLDEST_TIMESTAMP = loaded_config["oldest_timestamp_check"]
 
 # convert server settings key to number
-server_settings = {int(key): val for key, val in server_settings.items()}
+SERVER_CONFIG = {int(key): val for key, val in loaded_config["server_settings"].items()}
+NAME = __name__
+
+# Test directory. If this fails Error will be caught from main bot so that's fine.
+DB_PATH.mkdir(exist_ok=True)
+
+# --------------------------------------
 
 
 async def chat_history_gen(
     guild: Guild, from_date: Union[datetime, None], to_date: datetime
-):
+) -> AsyncGenerator[Message, None]:
+    """
+    Generates Messages between given dates.
+    :param guild: Server(guild) ID
+    :param from_date: Filter message since given date.
+    :param to_date: Filter message before given date, including exact same date.
+    """
 
     for channel in guild.text_channels:
 
@@ -50,6 +58,9 @@ async def chat_history_gen(
                     yield message
         except errors.Forbidden:
             logger.warning("Cannot access to channel '{}' - ID: {}", channel.name, channel.id)
+
+
+# --------------------------------------
 
 
 def discord_stat_embed_gen(member: Member):
@@ -87,6 +98,9 @@ def discord_stat_embed_gen(member: Member):
     return embed
 
 
+# --------------------------------------
+
+
 def generate_congratulation_embed(member: Member, next_role: Role, day, count):
 
     embed = Embed(title=f"{member.display_name}", colour=next_role.colour)
@@ -96,6 +110,9 @@ def generate_congratulation_embed(member: Member, next_role: Role, day, count):
     embed.add_field(name=f"Messages sent", value=f"{count} times")
 
     return embed
+
+
+# --------------------------------------
 
 
 class TimeDeltaWrap:
@@ -110,6 +127,9 @@ class TimeDeltaWrap:
         minute, seconds = divmod(seconds, 60)
 
         return f"{hour}h {minute}m {seconds}s"
+
+
+# --------------------------------------
 
 
 class DBWrapper:
@@ -174,15 +194,25 @@ class DBWrapper:
         self.con.commit()
         logger.info("[{}] DB commit done", NAME)
 
-    def __del__(self):
+    def close(self):
+        self.flush()
         self.con.close()
+
+    def __del__(self):
+        try:
+            self.close()
+        except sqlite3.ProgrammingError:
+            pass
+
+
+# --------------------------------------
 
 
 class DataHandler:
     dbs: Dict[int, DBWrapper] = {}
     catchup_running = False
 
-    _server_ids = set(map(int, server_settings.keys()))
+    _server_ids = set(map(int, SERVER_CONFIG.keys()))
     prepared = False
 
     @classmethod
@@ -215,7 +245,7 @@ class DataHandler:
     def load(cls):
 
         for server_id in cls._server_ids:
-            path_ = db_path.joinpath(f"{server_id}_counter").with_suffix(".db")
+            path_ = DB_PATH.joinpath(f"{server_id}_counter").with_suffix(".db")
             cls.dbs[server_id] = DBWrapper(path_)
 
     @classmethod
@@ -223,6 +253,12 @@ class DataHandler:
 
         for server_id, db_ in cls.dbs.items():
             db_.flush()
+
+    @classmethod
+    def close(cls):
+
+        for server_id, db_ in cls.dbs.items():
+            db_.close()
 
     @classmethod
     async def catch_up(cls, bot: Bot):
@@ -280,14 +316,20 @@ class DataHandler:
         cls.catchup_running = False
 
 
-# async def debug_data(context: Context):
-#     await context.reply(f"```json\n{json.dumps(JsonDataHandler._server_data, indent=2)}\n```")
+# --------------------------------------
 
 
-async def member_stat(context: Context):
+async def member_stat(context: Context, member_id: int = 0):
 
-    logger.info("[{}] called", NAME)
-    member: Member = context.author
+    logger.info("[{}] called, param: {}", NAME, member_id)
+
+    if member_id:
+        member = context.guild.get_member(member_id)
+        if not member:
+            await context.reply("No member with given ID exists!")
+            return
+    else:
+        member: Member = context.author
 
     embed = discord_stat_embed_gen(member)
 
@@ -320,9 +362,12 @@ async def on_message_trigger(message: Message):
         logger.warning(
             "[{}] Got a message from unlisted server {}, ignoring.", NAME, guild.id
         )
+    except sqlite3.ProgrammingError:
+        logger.warning("[{}] DB is closed, is this reloading?", NAME)
+        return
 
     # server exists, then fetch config for faster access
-    config = server_settings[guild.id]
+    config = SERVER_CONFIG[guild.id]
 
     # check member age first
     if (day := (datetime.utcnow() - member.joined_at).days) < config[
@@ -331,7 +376,7 @@ async def on_message_trigger(message: Message):
         return
 
     # then check if member is new member
-    role_id = server_settings[guild.id]["from_role"]
+    role_id = SERVER_CONFIG[guild.id]["from_role"]
     role = guild.get_role(role_id)
 
     if role not in member.roles:
@@ -393,7 +438,7 @@ class AssignCog(Cog):
     def cog_unload(self):
         logger.info("[AssignCog] stopping.")
         self.task.cancel()
-        DataHandler.write()
+        DataHandler.close()
 
     @tasks.loop(count=1)
     async def callable_wrapper(self):
@@ -409,14 +454,14 @@ class AssignCog(Cog):
         logger.info("[AssignCog] Loading up stored data.")
         DataHandler.load()
 
-    @tasks.loop(minutes=save_interval)
+    @tasks.loop(minutes=SAVE_INTERVAL)
     async def task(self):
         if DataHandler.prepared:
-            logger.info("[AssignCog] saving comment accumulation.")
+            # logger.info("[AssignCog] saving comment accumulation.")
             DataHandler.write()
 
     def __del__(self):
-        DataHandler.write()
+        DataHandler.close()
 
 
 __all__ = [

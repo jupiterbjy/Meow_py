@@ -1,8 +1,7 @@
 {
   "discord_bot_token": "",
   "guild_id": 0,
-  "channel_id": 0,
-  "startup_message": "Meow World, Nyanstaree~\uD83C\uDF1F I am a simple python bot you can play with. Type /help for usage!",
+  "prefix": "//",
   "help_message": "Meow World, Nyanstaree~\uD83C\uDF1F I'm a playground bot, type /help for usage!",
   "bot_activity": "Cuddling Python",
   "reload_whitelist": [426701488283189249]

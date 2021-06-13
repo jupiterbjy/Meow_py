@@ -1,13 +1,13 @@
+"""
+Linux Command sets for showing system information where bot is running.
+"""
 import asyncio
 
 from discord.ext.commands import Context
 from discord import Embed
 from loguru import logger
 
-try:
-    from . import CommandRepresentation
-except ModuleNotFoundError:
-    from __init__ import CommandRepresentation
+from .. import CommandRepresentation
 
 
 linux_info_command = (
@@ -15,9 +15,9 @@ linux_info_command = (
 )
 
 shell_field_commands = {
-    "CPU / RAM": '''echo "CPU `LC_ALL=C top -bn1 | grep "Cpu(s)" | sed "s/.*, *\([0-9.]*\)%* id.*/\1/" | awk '{print 100 - $1}'`% RAM `free -m | awk '/Mem:/ { printf("%3.1f%%", $3/$2*100) }'`"''',
+    "CPU / RAM": '''echo CPU `lscpu | grep 'CPU MHz' | awk -F : '{gsub(/ /,""); print $2}'` MHz \| RAM `free -m | awk '/Mem:/ { printf("%3.1f%%", $3/$2*100) }'`"''',
     "CPU Model": """cat /proc/cpuinfo | awk -F : '/model name/ {print $2}' | head -1 | xargs""",
-    "Disk usage": """df -h | grep -e /dev/sd -e md""",
+    "Disk usage": """df -lh --total -x tmpfs | tail -1 | awk ' {print "Total", $2, "| Used", $3, "| Free", $4 }'""",
 }
 
 

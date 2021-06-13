@@ -6,7 +6,7 @@ from discord.ext.commands import Context
 from discord import Embed, Member, Role, Asset
 from loguru import logger
 
-from . import CommandRepresentation
+from BotComponents import CommandRepresentation
 
 
 async def echo(context: Context, *args):
