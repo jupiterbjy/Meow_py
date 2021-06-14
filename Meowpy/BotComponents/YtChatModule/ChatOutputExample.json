@@ -1,0 +1,31 @@
+{
+  "author": {
+    "badgeUrl": "",
+    "type": "MEMBER",
+    "isVerified": false,
+    "isChatOwner": false,
+    "isChatSponsor": true,
+    "isChatModerator": false,
+    "channelId": "",
+    "channelUrl": "",
+    "name": "",
+    "imageUrl": ""
+  },
+  "type": "textMessage",
+  "id": "",
+  "timestamp": 0,
+  "elapsedTime": "",
+  "datetime": "",
+  "message": "",
+  "messageEx": [
+    {
+      "id": "",
+      "txt": "",
+      "url": ""
+    }
+  ],
+  "amountValue": 0.0,
+  "amountString": "",
+  "currency": "",
+  "bgColor": 0
+}

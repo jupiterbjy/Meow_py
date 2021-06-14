@@ -2,8 +2,8 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Union
 
-from discord.ext.commands import Context
-from discord import Embed, Member, Role, Asset
+from discord.ext.commands import Context, errors
+from discord import Embed, Member, Role, Asset, Emoji
 from loguru import logger
 
 from BotComponents import CommandRepresentation
@@ -114,6 +114,26 @@ async def joined(context: Context, user_id: int = 0):
     await context.reply(embed=discord_stat_embed_gen(member))
 
 
+async def sticker_info(context: Context, *emojis: Emoji):
+    # ref from https://stackoverflow.com/questions/54937474/
+
+    for emoji in emojis:
+        embed = Embed(description=f"\\<:{emoji.name}:{emoji.id}\\>", title=f"emoji: {emoji}")
+        embed.add_field(name="id", value=emoji.id)
+        embed.add_field(name="name", value=emoji.name)
+
+        await context.reply(embed=embed)
+
+
+async def sticker_info_error(context: Context, error):
+
+    if isinstance(error, errors.EmojiNotFound):
+        await context.reply("I can't find such emoji in this server!")
+        return
+
+    logger.warning("Got error {}", error)
+
+
 __all__ = [
     CommandRepresentation(
         echo,
@@ -129,5 +149,11 @@ __all__ = [
         joined,
         name="joined",
         help="Show your join dates. Pass Member ID to get that member's dates instead.",
+    ),
+    CommandRepresentation(
+        sticker_info,
+        err_handler=sticker_info_error,
+        name="stickerinfo",
+        help="Shows debugging data of the sticker."
     )
 ]

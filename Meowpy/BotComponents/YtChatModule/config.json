@@ -1,0 +1,23 @@
+{
+  "yt_vid_id": "UoGZuSayVuo",
+  "discord_ch_id": 849346078405951528,
+  "interval_sec": 3,
+  "timezone_str": "Asia/Seoul",
+  "role_symbol": {
+    "default": "",
+    "member": "✨",
+    "moderator": "\uD83C\uDF1F",
+    "owner": "\uD83D\uDC8E"
+  },
+  "emoji_mapping": {
+    ":_cyanCute:": "<:_cyanCute:781054403426648064>",
+    ":_cyanCheer:": "<:cyan_hi:781054400726564864>",
+    ":_cyanCry:": "<:cyan_cry:781054403502276619>",
+    ":_cyanCool:": "<:cyan_salt:781054400642416660>",
+    ":_cyanShy:": "<:cyan_book:781054403209068554>",
+    ":_cyanHappy:": "<:cyan_heart:781054403297148948>",
+    ":_cyanNooo:": "<:cyan_NG:781054403067117578>",
+    ":_cyanAngry:": "<:_cyanAngry:781054403330179092>",
+    ":_cyanKusa:": "<:_cyanKusa:828050013694459957>"
+  }
+}

@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python3.9
 
 """
 Modular discord bot that supports dynamic reload of modularized commands.
@@ -136,7 +136,8 @@ if __name__ == "__main__":
     )
 
     # log config
-    logger.add("./log/{time}.log", rotation="5MB", retention="7 days", compression="zip")
+    log_p = pathlib.Path(__file__).parent.joinpath("log/{time}.log")
+    logger.add(log_p, rotation="5MB", retention="7 days", compression="zip")
 
     assign_basic_commands(bot_)
 
