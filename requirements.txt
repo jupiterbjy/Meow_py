@@ -1,12 +1,9 @@
 google-api-python-client
-jsbeautifier
 matplotlib
-trio
 coloredlogs
 python-dateutil
 discord.py
 loguru
 traceback_with_variables
-
 pytz
 pytchat

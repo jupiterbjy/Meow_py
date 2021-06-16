@@ -76,19 +76,18 @@ def discord_stat_embed_gen(member: Member):
     embed = Embed(title=f"{member.display_name}", colour=role.color if role else None)
 
     now = datetime.utcnow()
-    discord_join = TimeDeltaWrap(now - member.created_at)
-    member_join = TimeDeltaWrap(now - member.joined_at)
+    discord_join = now - member.created_at
+    member_join = now - member.joined_at
 
     premium = (
-        TimeDeltaWrap(now - member.premium_since) if member.premium_since else None
+        (now - member.premium_since) if member.premium_since else None
     )
 
-    embed.add_field(name="Discord joined", value=f"{discord_join}")
-
-    embed.add_field(name="Server joined", value=f"{member_join}")
+    embed.add_field(name="Discord joined", value=f"{discord_join.days}d {discord_join.seconds // 3600}hr")
+    embed.add_field(name="Server joined", value=f"{member_join.days}d {member_join.seconds // 3600}hr")
 
     if premium:
-        embed.add_field(name="Boost for", value=f"{premium}")
+        embed.add_field(name="Boost for", value=f"{premium.days}d {premium.seconds // 3600}hr")
 
     if role:
         embed.set_footer(text=f"Primary role - {role.name}")
@@ -101,12 +100,12 @@ def discord_stat_embed_gen(member: Member):
 # --------------------------------------
 
 
-def generate_congratulation_embed(member: Member, next_role: Role, day, count):
+def generate_congratulation_embed(member: Member, next_role: Role, delta: timedelta, count):
 
     embed = Embed(title=f"{member.display_name}", colour=next_role.colour)
 
     embed.set_thumbnail(url=str(member.avatar_url))
-    embed.add_field(name="Member for", value=f"{day} days")
+    embed.add_field(name="Member for", value=f"{delta.days}d {delta.seconds // 3600}hr")
     embed.add_field(name=f"Messages sent", value=f"{count} times")
 
     return embed
@@ -370,7 +369,8 @@ async def on_message_trigger(message: Message):
     config = SERVER_CONFIG[guild.id]
 
     # check member age first
-    if (day := (datetime.utcnow() - member.joined_at).days) < config[
+    diff = datetime.utcnow() - member.joined_at
+    if diff.days < config[
         "minimum_joined_days"
     ]:
         return
@@ -393,7 +393,7 @@ async def on_message_trigger(message: Message):
         "[{}] User '{}' (age: {}d, comments: {}) met requirements.",
         NAME,
         member.display_name,
-        day,
+        diff.days,
         comments_count,
     )
 
@@ -408,7 +408,7 @@ async def on_message_trigger(message: Message):
 
     await message.reply(
         f"Congratulation <@{member.id}>, you're now a {next_role.name}!",
-        embed=generate_congratulation_embed(member, next_role, day, comments_count),
+        embed=generate_congratulation_embed(member, next_role, diff, comments_count),
     )
 
 

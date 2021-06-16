@@ -1,3 +1,10 @@
+"""
+Module to sent python codes users entered in discord to dedicated machine.
+
+That machine need to be running following script:
+https://gist.github.com/jupiterbjy/dcf4dd27784c80369b76c65d2077b643
+"""
+
 import pathlib
 import asyncio
 import json

@@ -43,7 +43,7 @@ class CommandRepresentation(RepresentationBase):
 
 
 class CogRepresentation(RepresentationBase):
-    def __init__(self, cog: Type[Cog], *_, **__):
+    def __init__(self, cog: Type[Cog]):
         self.name = f"{cog.__name__}[Cog]"
         self.cog = cog
 
@@ -67,11 +67,9 @@ class CogRepresentation(RepresentationBase):
 
 class EventRepresentation(RepresentationBase):
 
-    def __init__(self, func, listen_name, *args, err_handler=None, **kwargs):
+    def __init__(self, func, listen_name, err_handler=None):
         self.name = f"{func.__name__}[Event]"
         self.func = func
-        self.args = args
-        self.kwargs = kwargs
 
         self.err_handler = err_handler
         self.listen_name = listen_name
@@ -82,7 +80,7 @@ class EventRepresentation(RepresentationBase):
 
         bot.add_listener(self.func, self.listen_name)
 
-        # Error handler is not tested at all, no guarantee it works.
+        # Event's Error handler is not tested at all, no guarantee it works.
         if self.err_handler:
             self.func.error(self.err_handler)
 
