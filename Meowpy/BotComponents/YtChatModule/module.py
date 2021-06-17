@@ -2,12 +2,11 @@ import asyncio
 import pathlib
 import json
 from datetime import datetime
-from typing import Dict, Union
+from typing import Dict, Union, List
 
-import pytz
 from pytchat import LiveChatAsync
 from pytchat.processors.default.processor import Chatdata, Chat
-from discord.ext.commands import Cog, Bot
+from discord.ext.commands import Cog, Bot, Context, command
 from discord.ext import tasks
 from discord.embeds import EmptyEmbed
 from discord import Embed, TextChannel
@@ -24,6 +23,7 @@ yt_vid_id: str
 discord_ch_id: int
 interval_sec: int
 timezone_str: str
+command_whitelist: List[int]
 role_symbol: Dict[str, str]
 emoji_mapping: Dict[str, str]
 
@@ -43,93 +43,171 @@ class YoutubeChatRelayCog(Cog):
 
     def __init__(self, bot: Bot):
         self.bot = bot
+        self.vid_id = yt_vid_id
 
         logger.info("[ChatRelay] starting.")
 
         self.run_flag = True
+        self.livechat: Union[LiveChatAsync, None] = None
+
+        self.load_livechat()
         self.relay_task.start()
 
     def cog_unload(self):
         logger.info("[ChatRelay] Stopping.")
 
+        self.livechat.terminate()
         self.run_flag = False
 
+        self.relay_task.stop()
+
+    @staticmethod
+    def embed_apply_type(embed: Embed, json_data: dict):
+        """
+        Adds corresponding stuffs to embed based on message's type.
+
+        :param embed: Discord embed
+        :param json_data: mapping type from message json.
+        """
+
+        type_: str = json_data["type"]
+
+        # originally thought of using dict and lambda, but this was much simpler.
+        # obviously ordered to most frequent order.
+
+        if type_ == "textMessage":
+            pass
+
+        elif type_ == "superChat":
+            embed.title = json_data["amountString"]
+
+        elif type_ == "newSponsor":
+            embed.title = "New member"
+
+        elif type_ == "superSticker":
+            embed.title = json_data["amountString"]
+            embed.set_thumbnail(url=json_data["sticker"])
+
+    @staticmethod
+    def embed_set_author(embed: Embed, json_data: dict):
+        """
+        Adds author fields to embed.
+
+        :param embed: Discord embed
+        :param json_data: mapping type from message json.
+        """
+
+        author_dict: dict = json_data["author"]
+
+        # prep icon
+        icon = url if (url := author_dict["imageUrl"]) else EmptyEmbed
+
+        # determine role
+        if author_dict["isChatOwner"]:
+            role = "owner"
+        elif author_dict["isChatModerator"]:
+            role = "moderator"
+        elif author_dict["isChatSponsor"]:
+            role = "member"
+        else:
+            role = "default"
+
+        name = " ".join((author_dict["name"], role_symbol[role]))
+
+        embed.set_author(name=name, url=author_dict["channelUrl"], icon_url=icon)
+
     async def callback(self, chat_data: Chatdata):
+        """
+        Callback running in LiveAsyncChat
+
+        :param chat_data:
+        :return:
+        """
+
         async for chat in chat_data.async_items():
             chat: Chat
 
             json_data: dict = json.loads(chat.json())
 
-            logger.debug(f"Received json: \n{json.dumps(json_data, indent=2)}\n")
+            logger.debug(f"Received json:\n{json.dumps(json_data, indent=2)}\n")
 
-            author_dict: dict = json_data["author"]
-            is_owner: bool = author_dict["isChatOwner"]
-            is_mod: bool = author_dict["isChatModerator"]
-            is_member: bool = author_dict["isChatSponsor"]
-
+            # determine message type
             type_: str = json_data["type"]
+
+            # prepare message
             message: str = json_data["message"]
 
             for yt_emoji, dc_image in emoji_mapping.items():
                 if yt_emoji in message:
                     message = message.replace(yt_emoji, dc_image)
 
-            donation_str: str = json_data["amountString"]
-
             bg_color: int = argb_to_rgb(json_data["bgColor"])
 
             # Start writing embed
-            embed = Embed(title=donation_str if donation_str else EmptyEmbed, description=message, colour=bg_color)
+            embed = Embed(description=message, colour=bg_color)
 
-            # prep icon
-            icon = url if (url := author_dict["imageUrl"]) else EmptyEmbed
-
-            # checks condition by order of Owner, Mod, Sponsor.
-            if is_owner:
-                role = "owner"
-            elif is_mod:
-                role = "moderator"
-            elif is_member:
-                role = "member"
-            else:
-                role = "default"
-
-            name = " ".join((author_dict["name"], role_symbol[role]))
-
-            embed.set_author(name=name, url=author_dict["channelUrl"], icon_url=icon)
-
-            # check sticker
-            if type_ == "superSticker":
-                embed.set_thumbnail(url=json_data["sticker"])
+            # write author and type specific stuffs
+            self.embed_apply_type(embed, json_data)
+            self.embed_set_author(embed, json_data)
 
             # set utc time
             timestamp = json_data["timestamp"] / 1000.0
-            # try:
-            #     utc_aware = datetime.fromtimestamp(timestamp, pytz.timezone(timezone_str))
-            # except pytz.exceptions.UnknownTimeZoneError:
-            #     logger.critical("Wrong timezone format!")
-            #     return
 
             embed.timestamp = datetime.utcfromtimestamp(timestamp)
             # embed.set_footer(text=f"{utc_aware.strftime(type_ + ' %Y-%m-%d %H:%M:%S (UTC)')}")
 
             channel: TextChannel = self.bot.get_channel(discord_ch_id)
+
             try:
                 await channel.send(embed=embed)
+
             except AttributeError:
                 logger.critical("Unknown channel ID {}, check configuration!", discord_ch_id)
 
+    def load_livechat(self):
+        if self.livechat:
+            self.livechat.terminate()
+
+        stream = LiveChatAsync(self.vid_id, callback=self.callback)
+        stream.raise_for_status()
+
+        self.livechat = stream
+
     @tasks.loop(count=1)
     async def relay_task(self):
-        stream = LiveChatAsync(yt_vid_id, callback=self.callback)
+        self.run_flag = True
 
-        while stream.is_alive() and self.run_flag:
+        while self.livechat.is_alive() and self.run_flag:
             await asyncio.sleep(3)
 
         if not self.run_flag:
             logger.info("Stopping task!")
         else:
-            logger.warning("Stream {} stopped?", yt_vid_id)
+            try:
+                self.livechat.raise_for_status()
+            except Exception as err:
+                logger.warning("Got {}.\nDetail: {}", type(err).__name__, err)
+            logger.warning("Chat relaying of Stream {} ended.", self.vid_id)
+
+    @command()
+    async def change_stream_id(self, context: Context, video_id: str):
+
+        logger.info("Called. Param: {}", video_id)
+
+        if context.author.id not in command_whitelist:
+            await context.reply("Your user ID is not listed in whitelist.")
+            logger.warning("User '{}' is not in whitelist.", context.author.display_name)
+            return
+
+        try:
+            self.load_livechat()
+        except Exception as err:
+            logger.critical("Got {}.\nDetails: {}", type(err).__name__, err)
+            self.run_flag = False
+            return
+
+        config["yt_vid_id"] = video_id
+        config_path.write_text(json.dumps(config))
 
 
 # async def wrap():

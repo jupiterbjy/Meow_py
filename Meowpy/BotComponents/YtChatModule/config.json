@@ -3,6 +3,7 @@
   "discord_ch_id": 849346078405951528,
   "interval_sec": 3,
   "timezone_str": "Asia/Seoul",
+  "command_whitelist": [426701488283189249, 86412226755334144, 757307928012259419, 415775449789235201, 779580904653848604],
   "role_symbol": {
     "default": "",
     "member": "✨",

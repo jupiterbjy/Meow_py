@@ -1,17 +1,3 @@
-## Usage
-
-```commandline
-usage: __main__.py [-h] [-p CONFIG_PATH]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -p CONFIG_PATH, --config-path CONFIG_PATH
-                        Path to configuration file. Default is
-                        'configuration.json' in current script's path.
-```
-
----
-
 ## Features
 
 ### Module based bot commands 
