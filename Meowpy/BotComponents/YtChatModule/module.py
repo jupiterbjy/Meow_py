@@ -47,7 +47,6 @@ class YoutubeChatRelayCog(Cog):
 
         logger.info("[ChatRelay] starting.")
 
-        self.run_flag = True
         self.livechat: Union[LiveChatAsync, None] = None
 
         self.load_livechat()
@@ -57,9 +56,6 @@ class YoutubeChatRelayCog(Cog):
         logger.info("[ChatRelay] Stopping.")
 
         self.livechat.terminate()
-        self.run_flag = False
-
-        self.relay_task.stop()
 
     @staticmethod
     def embed_apply_type(embed: Embed, json_data: dict):
@@ -83,6 +79,7 @@ class YoutubeChatRelayCog(Cog):
 
         elif type_ == "newSponsor":
             embed.title = "New member"
+            embed.colour = "0f9d5"
 
         elif type_ == "superSticker":
             embed.title = json_data["amountString"]
@@ -131,9 +128,6 @@ class YoutubeChatRelayCog(Cog):
 
             logger.debug(f"Received json:\n{json.dumps(json_data, indent=2)}\n")
 
-            # determine message type
-            type_: str = json_data["type"]
-
             # prepare message
             message: str = json_data["message"]
 
@@ -165,8 +159,10 @@ class YoutubeChatRelayCog(Cog):
                 logger.critical("Unknown channel ID {}, check configuration!", discord_ch_id)
 
     def load_livechat(self):
-        if self.livechat:
+        try:
             self.livechat.terminate()
+        except AttributeError:
+            pass
 
         stream = LiveChatAsync(self.vid_id, callback=self.callback)
         stream.raise_for_status()
@@ -175,19 +171,15 @@ class YoutubeChatRelayCog(Cog):
 
     @tasks.loop(count=1)
     async def relay_task(self):
-        self.run_flag = True
 
-        while self.livechat.is_alive() and self.run_flag:
+        while self.livechat.is_alive():
             await asyncio.sleep(3)
 
-        if not self.run_flag:
-            logger.info("Stopping task!")
-        else:
-            try:
-                self.livechat.raise_for_status()
-            except Exception as err:
-                logger.warning("Got {}.\nDetail: {}", type(err).__name__, err)
-            logger.warning("Chat relaying of Stream {} ended.", self.vid_id)
+        try:
+            self.livechat.raise_for_status()
+        except Exception as err:
+            logger.warning("Got {}.\nDetail: {}", type(err).__name__, err)
+        logger.warning("Chat relaying of Stream {} ended.", self.vid_id)
 
     @command()
     async def change_stream_id(self, context: Context, video_id: str):
@@ -203,7 +195,6 @@ class YoutubeChatRelayCog(Cog):
             self.load_livechat()
         except Exception as err:
             logger.critical("Got {}.\nDetails: {}", type(err).__name__, err)
-            self.run_flag = False
             return
 
         config["yt_vid_id"] = video_id
