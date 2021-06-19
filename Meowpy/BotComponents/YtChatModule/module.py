@@ -9,7 +9,7 @@ from pytchat.processors.default.processor import Chatdata, Chat
 from discord.ext.commands import Cog, Bot, Context, command
 from discord.ext import tasks
 from discord.embeds import EmptyEmbed
-from discord import Embed, TextChannel
+from discord import Embed, TextChannel, Colour
 from loguru import logger
 
 
@@ -79,7 +79,7 @@ class YoutubeChatRelayCog(Cog):
 
         elif type_ == "newSponsor":
             embed.title = "New member"
-            embed.colour = "0f9d5"
+            embed.colour = Colour(value=int("0f9d5", base=16))
 
         elif type_ == "superSticker":
             embed.title = json_data["amountString"]
