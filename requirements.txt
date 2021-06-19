@@ -7,3 +7,4 @@ loguru
 traceback_with_variables
 pytz
 pytchat
+pillow

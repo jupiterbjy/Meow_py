@@ -106,7 +106,7 @@ def fetch_scripts() -> List[Tuple[pathlib.Path, int]]:
 
             files = [p for p in path_.parent.iterdir() if p.is_file()]
 
-            hashed = hash("".join(p.read_text() for p in files))
+            hashed = hash(b"".join(p.read_bytes() for p in files))
 
             try:
                 if LOADED_FILE_HASH[path_] != hashed:
