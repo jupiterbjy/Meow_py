@@ -8,14 +8,16 @@
       "new_role": 812458585274712078,
       "minimum_joined_days": 7,
       "minimum_chats": 30,
-      "test_mode": true
+      "test_mode": false,
+      "notify_channel": 0
     },
     "757313446730793101": {
       "from_role": 783181261585121280,
       "new_role": 783151859652493332,
       "minimum_joined_days": 3,
       "minimum_chats": 15,
-      "test_mode": true
+      "test_mode": false,
+      "notify_channel": 854206017147371541
     }
   }
 }

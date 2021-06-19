@@ -406,6 +406,15 @@ async def on_message_trigger(message: Message):
     await member.remove_roles(role)
     await member.add_roles(next_role)
 
+    if channel_id := config["notify_channel"]:
+        channel = message.guild.get_channel(channel_id)
+
+        await channel.send(
+            f"Congratulation <@{member.id}>, you're now a {next_role.name}!",
+            embed=generate_congratulation_embed(member, next_role, diff, comments_count),
+        )
+        return
+
     await message.reply(
         f"Congratulation <@{member.id}>, you're now a {next_role.name}!",
         embed=generate_congratulation_embed(member, next_role, diff, comments_count),
