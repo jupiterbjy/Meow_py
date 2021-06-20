@@ -4,6 +4,7 @@ Module to combine given image with template
 
 import pathlib
 import json
+from datetime import datetime
 from io import BytesIO
 from typing import Dict, Union, List
 
@@ -90,6 +91,7 @@ def main(
     margin: float,
     bg_img_bytes: BytesIO,
     fore_img_bytes: BytesIO,
+    background: bool,
     angle_,
     width,
     offset_x,
@@ -98,12 +100,14 @@ def main(
     img = Image.open(fore_img_bytes).convert("RGBA")
     template = Image.open(bg_img_bytes).convert("RGBA")
 
+    if not background:
+        template = Image.new(template.mode, template.size)
+
     foreground = resize_image(
         pad(rotate_image(make_square(img), angle_), margin), width
     )
 
-    final_img = overlay_image(foreground, template, offset_x, offset_y)
-    return final_img
+    return overlay_image(foreground, template, offset_x, offset_y)
 
 
 def main_sandwiched(
@@ -111,6 +115,7 @@ def main_sandwiched(
     bg_img_bytes: BytesIO,
     top_image_bytes: BytesIO,
     fore_img_bytes: BytesIO,
+    background: bool,
     angle_,
     width,
     offset_x,
@@ -119,21 +124,23 @@ def main_sandwiched(
     top_img = Image.open(top_image_bytes).convert("RGBA")
 
     temp_img = main(
-        margin, bg_img_bytes, fore_img_bytes, angle_, width, offset_x, offset_y
+        margin, bg_img_bytes, fore_img_bytes, background, angle_, width, offset_x, offset_y
     )
     final_img = overlay_image(top_img, temp_img, 0, 0)
 
     return final_img
 
 
-async def gen_image(context: Context, margin_percent: float = 0.0):
-    logger.info("Called")
+async def gen_image(context: Context, margin_percent: float = 0.0, background: bool = True):
+    username = context.author.display_name
+    logger.info("Called from {}, param: {} {}", username, margin_percent, background)
 
     try:
         img: Attachment = context.message.attachments[0]
         data = BytesIO(await img.read())
     except IndexError:
         # no image, use user's profile image
+        logger.debug("No image provided. Proceeding to use user's profile image.")
 
         data = BytesIO()
 
@@ -144,7 +151,9 @@ async def gen_image(context: Context, margin_percent: float = 0.0):
             await context.reply("Received wrong file, send images only!")
             return
 
-    logger.info("Image received from {}.", context.author.display_name)
+        logger.info("Image received from {}.", username)
+
+    start_time = datetime.now()
 
     try:
         if sandwich_mode:
@@ -153,6 +162,7 @@ async def gen_image(context: Context, margin_percent: float = 0.0):
                 BG_IMAGES[0],
                 BG_IMAGES[1],
                 data,
+                background,
                 angle,
                 square_height,
                 *bg_offset_after_rotate,
@@ -162,31 +172,41 @@ async def gen_image(context: Context, margin_percent: float = 0.0):
                 margin_percent,
                 BG_IMAGES[0],
                 data,
+                background,
                 angle,
                 square_height,
                 *bg_offset_after_rotate,
             )
     except Exception as err:
-        text = f"Got {type(err).__name__}. Detail:\n{err}"
+        text = f"Got {type(err).__name__}.\nDetail:\n```\n{err}\n```"
 
         await context.reply(text)
         logger.critical(text)
 
         raise
 
+    time_took = datetime.now() - start_time
+
     output_bytes = BytesIO()
     output.save(output_bytes, format="PNG")
     output_bytes.seek(0)
+
+    logger.info("Request for {} took {} microseconds.", username, time_took.microseconds)
 
     await context.reply(
         file=File(fp=output_bytes, filename=f"{context.message.id}.png")
     )
 
 
+async def gen_image_error(context: Context, _):
+    await context.reply("You passed wrong parameter! Check command `help template`")
+
+
 __all__ = [
     CommandRepresentation(
         gen_image,
         name="template",
-        help="Receives image and combines with template. Set margin in percent to add padding.",
+        help="Attach image to frame it, or user's profile image will be framed. Set margin in percent to add padding.",
+        err_handler=gen_image_error
     )
 ]
