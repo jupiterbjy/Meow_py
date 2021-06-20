@@ -131,18 +131,22 @@ async def gen_image(context: Context, margin_percent: float = 0.0):
 
     try:
         img: Attachment = context.message.attachments[0]
+        data = BytesIO(await img.read())
     except IndexError:
-        await context.reply("No images received!")
-        return
+        # no image, use user's profile image
 
-    if "image" not in img.content_type:
-        await context.reply("Received wrong file, send images only!")
-        return
+        data = BytesIO()
+
+        await context.author.avatar_url.save(data)
+
+    else:
+        if "image" not in img.content_type:
+            await context.reply("Received wrong file, send images only!")
+            return
 
     logger.info("Image received from {}.", context.author.display_name)
 
     try:
-        data = BytesIO(await img.read())
         if sandwich_mode:
             output = main_sandwiched(
                 margin_percent,
