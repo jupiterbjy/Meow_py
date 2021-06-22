@@ -52,12 +52,16 @@ async def chat_history_gen(
 
         message: Message
         try:
-            async for message in channel.history(after=from_date, before=to_date, limit=None, oldest_first=False):
+            async for message in channel.history(
+                after=from_date, before=to_date, limit=None, oldest_first=False
+            ):
 
                 if not message.author.bot:
                     yield message
         except errors.Forbidden:
-            logger.warning("Cannot access to channel '{}' - ID: {}", channel.name, channel.id)
+            logger.warning(
+                "Cannot access to channel '{}' - ID: {}", channel.name, channel.id
+            )
 
 
 # --------------------------------------
@@ -79,15 +83,25 @@ def discord_stat_embed_gen(member: Member):
     discord_join = now - member.created_at
     member_join = now - member.joined_at
 
-    premium = (
-        (now - member.premium_since) if member.premium_since else None
+    premium = (now - member.premium_since) if member.premium_since else None
+
+    embed.add_field(
+        name="Discord joined",
+        value=f"{discord_join.days}d {discord_join.seconds // 3600}hr",
+        inline=True,
+    )
+    embed.add_field(
+        name="Server joined",
+        value=f"{member_join.days}d {member_join.seconds // 3600}hr",
+        inline=True,
     )
 
-    embed.add_field(name="Discord joined", value=f"{discord_join.days}d {discord_join.seconds // 3600}hr")
-    embed.add_field(name="Server joined", value=f"{member_join.days}d {member_join.seconds // 3600}hr")
-
     if premium:
-        embed.add_field(name="Boost for", value=f"{premium.days}d {premium.seconds // 3600}hr")
+        embed.add_field(
+            name="Boost for",
+            value=f"{premium.days}d {premium.seconds // 3600}hr",
+            inline=True,
+        )
 
     if role:
         embed.set_footer(text=f"Primary role - {role.name}")
@@ -100,7 +114,9 @@ def discord_stat_embed_gen(member: Member):
 # --------------------------------------
 
 
-def generate_congratulation_embed(member: Member, next_role: Role, delta: timedelta, count):
+def generate_congratulation_embed(
+    member: Member, next_role: Role, delta: timedelta, count
+):
 
     embed = Embed(title=f"{member.display_name}", colour=next_role.colour)
 
@@ -169,7 +185,9 @@ class DBWrapper:
 
     def get_user_counter(self, user_id: int) -> int:
         if self.user_exists(user_id):
-            self.cursor.execute("SELECT counter FROM ACCUMULATION WHERE user_id = ?", (user_id,))
+            self.cursor.execute(
+                "SELECT counter FROM ACCUMULATION WHERE user_id = ?", (user_id,)
+            )
             return self.cursor.fetchone()[0]
 
         return 0
@@ -318,26 +336,38 @@ class DataHandler:
 # --------------------------------------
 
 
-async def member_stat(context: Context, member_id: int = 0):
+async def member_stat(context: Context, member_id: Union[Member, int] = 0):
 
-    logger.info("[{}] called, param: {}", NAME, member_id)
+    logger.info("called, param: {} type: {}", member_id, type(member_id))
 
-    if member_id:
-        member = context.guild.get_member(member_id)
-        if not member:
-            await context.reply("No member with given ID exists!")
-            return
-    else:
+    if not member_id:
         member: Member = context.author
+
+    elif isinstance(member_id, Member):
+        member = member_id
+    else:
+        member: Member = context.guild.get_member(member_id)
+
+    if not member:
+        await context.reply("No such member exists!")
+        return
 
     embed = discord_stat_embed_gen(member)
 
     embed.add_field(
         name="Messages sent",
         value=f"{DataHandler.show_count(context.guild.id, member.id)}",
+        inline=True,
     )
 
-    await context.reply(embed=embed)
+    try:
+        await context.reply(embed=embed)
+    except errors.Forbidden:
+        logger.warning(
+            "No permission to write to channel [{}] [ID {}].",
+            context.channel.name,
+            context.channel.id,
+        )
 
 
 async def on_message_trigger(message: Message):
@@ -370,9 +400,7 @@ async def on_message_trigger(message: Message):
 
     # check member age first
     diff = datetime.utcnow() - member.joined_at
-    if diff.days < config[
-        "minimum_joined_days"
-    ]:
+    if diff.days < config["minimum_joined_days"]:
         return
 
     # then check if member is new member
@@ -411,7 +439,9 @@ async def on_message_trigger(message: Message):
 
         await channel.send(
             f"Congratulation <@{member.id}>, you're now a {next_role.name}!",
-            embed=generate_congratulation_embed(member, next_role, diff, comments_count),
+            embed=generate_congratulation_embed(
+                member, next_role, diff, comments_count
+            ),
         )
         return
 
@@ -479,6 +509,6 @@ __all__ = [
     CommandRepresentation(
         member_stat, name="stat", help="Shows your stats in this server."
     ),
-    CommandRepresentation(trigger_catchup, name="catchup", help="Manually triggers message catchup."),
-    CommandRepresentation(flush_db, name="flushdb", help="Manually commit changes to db.")
+    # CommandRepresentation(trigger_catchup, name="catchup", help="Manually triggers message catchup."),
+    # CommandRepresentation(flush_db, name="flushdb", help="Manually commit changes to db.")
 ]

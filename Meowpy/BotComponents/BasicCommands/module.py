@@ -2,8 +2,9 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Union
 
-from discord.ext.commands import Context, errors
-from discord import Embed, Member, Role, Asset, Emoji
+from discord.ext.commands import Context
+from discord.ext.commands.errors import EmojiNotFound
+from discord import Embed, Member, Role, Asset, Emoji, errors
 from loguru import logger
 
 from BotComponents import CommandRepresentation
@@ -36,20 +37,6 @@ async def countdown(context: Context, number: int = 5):
         await asyncio.sleep(abs((last := (last + delta)) - datetime.now()).total_seconds())
 
 
-class TimeDeltaWrap:
-    def __init__(self, time_delta: timedelta):
-        self.delta = time_delta
-
-    def __str__(self):
-        if self.delta.days:
-            return f"{self.delta.days}d"
-
-        hour, seconds = divmod(self.delta.seconds, 3600)
-        minute, seconds = divmod(seconds, 60)
-
-        return f"{hour}h {minute}m {seconds}s"
-
-
 async def member_chat_history_gen(channel, target_member: Member, max_date=3):
 
     max_duration = timedelta(days=max_date)
@@ -80,19 +67,18 @@ def discord_stat_embed_gen(member: Member):
     embed = Embed(title=f"{member.display_name}", colour=role.color if role else None)
 
     now = datetime.utcnow()
-    discord_join = TimeDeltaWrap(now - member.created_at)
-    member_join = TimeDeltaWrap(now - member.joined_at)
+    discord_join = now - member.created_at
+    member_join = now - member.joined_at
 
     premium = (
-        TimeDeltaWrap(now - member.premium_since) if member.premium_since else None
+        (now - member.premium_since) if member.premium_since else None
     )
 
-    embed.add_field(name="Discord joined", value=f"{discord_join}")
-
-    embed.add_field(name="Server joined", value=f"{member_join}")
+    embed.add_field(name="Discord joined", value=f"{discord_join.days}d {discord_join.seconds // 3600}hr")
+    embed.add_field(name="Server joined", value=f"{member_join.days}d {member_join.seconds // 3600}hr")
 
     if premium:
-        embed.add_field(name="Boost for", value=f"{premium}")
+        embed.add_field(name="Boost for", value=f"{premium.days}d {premium.seconds // 3600}hr")
 
     if role:
         embed.set_footer(text=f"Primary role - {role.name}")
@@ -102,16 +88,26 @@ def discord_stat_embed_gen(member: Member):
     return embed
 
 
-async def joined(context: Context, user_id: int = 0):
+async def joined(context: Context, member_id: Union[Member, int] = 0):
 
-    logger.info("call on joined with user_id: {}", user_id)
+    logger.info("called, param: {} type: {}", member_id, type(member_id))
 
-    if not user_id:
+    if not member_id:
         member: Member = context.author
-    else:
-        member: Member = context.guild.get_member(user_id)
 
-    await context.reply(embed=discord_stat_embed_gen(member))
+    elif isinstance(member_id, Member):
+        member = member_id
+    else:
+        member: Member = context.guild.get_member(member_id)
+
+    if not member:
+        await context.reply("No such member exists!")
+        return
+
+    try:
+        await context.reply(embed=discord_stat_embed_gen(member))
+    except errors.Forbidden:
+        logger.warning("No permission to write to channel [{}] [ID {}].", context.channel.name, context.channel.id)
 
 
 async def sticker_info(context: Context, *emojis: Emoji):
@@ -127,7 +123,7 @@ async def sticker_info(context: Context, *emojis: Emoji):
 
 async def sticker_info_error(context: Context, error):
 
-    if isinstance(error, errors.EmojiNotFound):
+    if isinstance(error, EmojiNotFound):
         await context.reply("I can't find such emoji in this server!")
         return
 
