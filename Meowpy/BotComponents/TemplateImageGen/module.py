@@ -16,6 +16,9 @@ from loguru import logger
 from .. import CommandRepresentation
 
 
+MAX_ZOOM = -100
+MAX_ZOOM_OUT = 1000
+
 ROOT = pathlib.Path(__file__).parent
 config_path = ROOT.joinpath("config.json")
 config: Dict[str, Union[str, int]] = json.loads(config_path.read_text())
@@ -104,7 +107,7 @@ def main(
         template = Image.new(template.mode, template.size)
 
     foreground = resize_image(
-        pad(rotate_image(make_square(img), angle_), margin), width
+        rotate_image(pad(make_square(img), margin), angle_), width
     )
 
     return overlay_image(foreground, template, offset_x, offset_y)
@@ -134,6 +137,10 @@ def main_sandwiched(
 async def gen_image(context: Context, margin_percent: float = 0.0, background: bool = True):
     username = context.author.display_name
     logger.info("Called from {}, param: {} {}", username, margin_percent, background)
+
+    if not (MAX_ZOOM <= margin_percent <= MAX_ZOOM_OUT):
+        await context.reply(f"Margin is outside limit! Limit is [{MAX_ZOOM} ~ {MAX_ZOOM_OUT}]")
+        return
 
     try:
         img: Attachment = context.message.attachments[0]
