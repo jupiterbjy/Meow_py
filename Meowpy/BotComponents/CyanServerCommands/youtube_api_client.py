@@ -151,7 +151,7 @@ class GoogleClient:
             fields="items/statistics/subscriberCount",
         )
 
-        return req.execute()["items"][0]["statistics"]["subscriberCount"]
+        return int(req.execute()["items"][0]["statistics"]["subscriberCount"])
 
     def get_upcoming_streams(self, channel_id: str) -> Tuple[VideoInfo, ...]:
 

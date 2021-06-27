@@ -4,12 +4,23 @@ from datetime import datetime, timezone
 from typing import Union, List
 
 from dateutil.parser import isoparse
-from discord.ext.commands import Context
-from discord import Embed, Colour, File, Member, User, Role, Guild, Forbidden
+from discord.ext.commands import Context, Cog, Bot, command
+from discord.ext import tasks
+from discord import (
+    Embed,
+    Colour,
+    File,
+    Member,
+    User,
+    Role,
+    Guild,
+    Forbidden,
+    TextChannel,
+)
 from loguru import logger
 
 from .youtube_api_client import GoogleClient
-from .. import CommandRepresentation
+from .. import CommandRepresentation, CogRepresentation
 
 
 google_api = ""
@@ -23,7 +34,7 @@ locals().update(loaded_config)
 
 
 async def run_literally(context: Context):
-    logger.info("called by {}", context.author)
+    logger.info("called by {}", context.author.id)
 
     await context.send(
         "https://cdn.discordapp.com/attachments/783069235999014912/840531297499480084/ezgif.com-gif-maker.gif"
@@ -34,7 +45,7 @@ async def run_literally(context: Context):
 
 
 async def get_stream_image(context: Context, index: int = 0):
-    logger.info("called by {}, index {}", context.author, index)
+    logger.info("called by {}, index {}", context.author.id, index)
 
     files = [f for f in record_path.iterdir() if f.suffix == ".png"]
 
@@ -88,6 +99,8 @@ async def get_stream_image_error(context: Context, _):
 
 async def get_latest(context: Context):
 
+    logger.info("called by {}", context.author.id)
+
     client = GoogleClient(google_api)
 
     vid_infos = [client.get_latest_videos(id_, 1)[0] for id_ in yt_channels]
@@ -126,6 +139,8 @@ async def get_latest(context: Context):
 
 async def subscribe(context: Context):
 
+    logger.info("called by {}", context.author.id)
+
     user: Union[Member, User] = context.author
 
     # get role
@@ -148,6 +163,9 @@ async def subscribe(context: Context):
 
 
 async def unsubscribe(context: Context):
+
+    logger.info("called by {}", context.author.id)
+
     user: Union[Member, User] = context.author
 
     # get role
@@ -159,11 +177,82 @@ async def unsubscribe(context: Context):
         return
 
     try:
-        await user.remove_roles(role, reason="Unsubscribing to live stream notification.")
+        await user.remove_roles(
+            role, reason="Unsubscribing to live stream notification."
+        )
     except Forbidden:
         await context.reply("I have no privilege to remove roles! Ask mods for help!")
     else:
         await context.reply("Unsubscribed from live stream notification!")
+
+
+# --------------------------------------
+
+
+class CheckSubscribersCount(Cog):
+    div_factor = 1000
+
+    def __init__(self, bot: Bot):
+        logger.info("[CheckSub] Starting.")
+
+        self.bot = bot
+        self.channel_id = yt_channels[0]
+        self.client = GoogleClient(google_api)
+        self.last_sub = self.get_subs()
+        self.last_sub_factor = self.last_sub // self.div_factor
+
+        self.task.start()
+
+    def get_subs(self) -> int:
+        return self.client.get_subscribers_count(self.channel_id)
+
+    def cog_unload(self):
+        logger.info("[CheckSub] Stopping.")
+        self.task.stop()
+
+    @tasks.loop(seconds=15)
+    async def task(self):
+        self.last_sub = self.get_subs()
+
+        factor = self.last_sub // self.div_factor
+
+        if factor > self.last_sub_factor:
+            self.last_sub_factor = factor
+
+            message = Embed(title=f"{factor * self.div_factor} reached!")
+
+            message.add_field(name="Subscribers", value=f"{self.last_sub}")
+
+            message.set_thumbnail(
+                url="https://cdn.discordapp.com/avatars/757307928012259419/cfce0470f52118f947b93eb78f2033f9.webp?size=1024"
+            )
+
+            target_server: Guild = self.bot.get_guild(757313446730793101)
+            target_channel: TextChannel = target_server.get_channel(854206017147371541)
+
+            await target_channel.send(embed=message)
+
+    @command()
+    async def subs(self, context: Context):
+
+        logger.info("called by {}", context.author.id)
+
+        await context.reply(f"Last reported subscribers: {self.last_sub}")
+
+    @command()
+    async def check_sub_debug(self, context: Context):
+
+        logger.info("called by {}", context.author.id)
+
+        message = Embed(title=f"Debug data for {type(self).__name__}")
+
+        string_key = f"channel_id\nlast_sub\nlast_sub_factor\ndiv_factor"
+        string_val = f"{self.channel_id}\n{self.last_sub}\n{self.last_sub_factor}\n{self.div_factor}"
+
+        message.add_field(name="Key", value=string_key)
+        message.add_field(name="Value", value=string_val)
+
+        await context.reply(embed=message)
 
 
 __all__ = [
@@ -173,8 +262,14 @@ __all__ = [
 if subscription_role_id:
     __all__.extend(
         (
-            CommandRepresentation(subscribe, name="sub", help="Subscribe to live stream notification"),
-            CommandRepresentation(unsubscribe, name="unsub", help="Unsubscribe from live stream notification")
+            CommandRepresentation(
+                subscribe, name="sub", help="Subscribe to live stream notification"
+            ),
+            CommandRepresentation(
+                unsubscribe,
+                name="unsub",
+                help="Unsubscribe from live stream notification",
+            ),
         )
     )
 
@@ -184,18 +279,22 @@ if google_api:
         CommandRepresentation(
             get_stream_image,
             name="streamgraph",
-            help="Get stream's public statistics graph. "
-                 "Due to check interval and http errors, file may either be incomplete or not graphed at all.",
+            help="Get stream's public statistics graph."
+            "Due to check interval and http errors, file may either be incomplete or not graphed at all.",
             err_handler=get_stream_image_error,
         )
     )
+
+    __all__.append(CogRepresentation(CheckSubscribersCount))
 
 # Add if path is provided
 if record_absolute_path:
     record_path = pathlib.Path(record_absolute_path)
 
     if not record_path.exists():
-        logger.critical("Given record path {} does not exist, skipping.", record_path.as_posix())
+        logger.critical(
+            "Given record path {} does not exist, skipping.", record_path.as_posix()
+        )
 
     else:
         __all__.append(

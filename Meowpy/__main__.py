@@ -63,6 +63,7 @@ def assign_basic_commands(bot: commands.bot):
                 command_repr.add(bot)
             except Exception as err_:
                 add_failed[command_repr.name] = f"{type(err_).__name__}"
+                logger.critical(err_)
 
     @bot.command(
         name="module",
