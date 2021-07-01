@@ -1,10 +1,2 @@
-google-api-python-client
-matplotlib
-coloredlogs
-python-dateutil
-discord.py
+discord.py-message-components
 loguru
-traceback_with_variables
-pytz
-pytchat
-pillow

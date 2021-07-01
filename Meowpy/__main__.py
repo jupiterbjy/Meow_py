@@ -116,7 +116,7 @@ if __name__ == "__main__":
         "--config-path",
         type=pathlib.Path,
         default=pathlib.Path(__file__).parent.joinpath("configuration.json"),
-        help="Path to configuration file. Default is 'configuration.json' in current script's path.",
+        help="Path to configuration fil e. Default is 'configuration.json' in current script's path.",
     )
 
     args = parser.parse_args()
