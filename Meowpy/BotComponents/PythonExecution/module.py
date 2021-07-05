@@ -11,7 +11,7 @@ import json
 
 from datetime import datetime
 
-from discord.ext.commands import Context
+from discord.ext.commands import Context, errors
 from discord import Embed, Colour
 from loguru import logger
 
@@ -143,6 +143,13 @@ async def run_script(context: Context, *, code: str):
     embed.add_field(name="Return code", value=str(return_code))
     embed.add_field(name="Duration(with Network)", value=f"{(end_time - start_time).seconds}s")
     embed.set_thumbnail(url=image_url)
+
+    # size limit
+    if len(resp) >= 2000:
+        if resp.endswith("```"):
+            resp = resp[:1993] + "\n...```"
+        else:
+            resp = resp[:1996] + "\n..."
 
     await context.reply(resp, embed=embed)
 
