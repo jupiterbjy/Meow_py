@@ -1,13 +1,14 @@
 """
 Module for some management needs.
 """
-
+import asyncio
 import pathlib
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Union, AsyncGenerator, Tuple
 
 from discord.ext.commands import Context, Cog, Bot, command
+from discord.ext.commands.errors import CommandInvokeError
 from discord import (
     Embed,
     Color,
@@ -97,26 +98,50 @@ def generate_target_embed(member: Member, reason: str):
 async def purge(
     guild: Guild, member: Member, reason: str, log_channel_id: Union[int, None] = None
 ):
-
     logger.info(f"Purging started for user id {member.id}")
 
-    counter = 0
+    join_diff = datetime.utcnow() - member.joined_at
 
-    try:
-        async for message in chat_history_gen(guild, member.joined_at, None):
-            if message.author == member:
-                counter += 1
-                await message.delete()
+    logger.info(f"Banned user id {member.id}")
 
-    except errors.Forbidden as err:
-        logger.critical(f"Bot has no permission to perform task.\nDetails: {err}")
-        return
+    await guild.ban(member, reason=reason, delete_message_days=7)
 
-    logger.info(
-        f"Deleted {counter} message(s) sent by [{member.display_name}/{member.id}]"
-    )
+    if join_diff.days >= 7:
 
-    await guild.ban(member, reason=reason)
+        # if not user was in server longer than that. prepare to remove.
+        # prepare end time. a minor gap between utcnow at top and this one will be enough margin.
+        until_ = datetime.utcnow() - timedelta(days=7)
+
+        logger.info("User was in server longer than 7 days. Purging older messages.")
+
+        counter = 0
+
+        try:
+            async for message in chat_history_gen(guild, member.joined_at, until_):
+                if message.author == member:
+                    counter += 1
+
+                    await asyncio.sleep(0.1)
+
+                    try:
+                        await message.delete()
+                    except CommandInvokeError:
+                        while True:
+                            await asyncio.sleep(0.5)
+                            try:
+                                await message.delete()
+                            except CommandInvokeError:
+                                pass
+                            else:
+                                break
+
+        except errors.Forbidden as err:
+            logger.critical(f"Bot has no permission to perform task.\nDetails: {err}")
+            return
+
+        logger.info(
+            f"Deleted {counter} message(s) sent by [{member.display_name}/{member.id}]"
+        )
 
     # If logging channel was not given, pass.
     if not log_channel_id:
@@ -132,7 +157,7 @@ async def purge(
     # report to channel.
     embed = Embed(
         title=f"Purge report {datetime.utcnow()}",
-        description=f"User is banned, all {counter} message(s) was removed.",
+        description=f"User is banned, all messages for last {join_diff.days} day(s) were removed.",
     )
 
     embed.timestamp = datetime.utcnow()
@@ -210,7 +235,7 @@ class PurgeCog(Cog):
         message: Message = await context.reply(embed=embed, components=components)
 
         def inner_check(inter: Interaction, _: ButtonClick):
-            return inter.message == message
+            return inter.message == message and inter.author.top_role.id in command_whitelist_roles
 
         bot: Bot = context.bot
 
