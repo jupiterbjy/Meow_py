@@ -250,8 +250,10 @@ class PurgeCog(Cog):
                 embed=embed.set_footer(text="Purge started. This may take some time."),
                 components=[components[0].disable_all_buttons()]
             )
-
-            await purge(context.guild, target, reason, log_channel)
+            try:
+                await purge(context.guild, target, reason, log_channel)
+            except Exception as err:
+                await context.reply(f"Got error while processing: {err}")
 
         await interaction.edit(
             embed=embed.set_footer(text="All done! Message will be removed in 10 seconds."),
