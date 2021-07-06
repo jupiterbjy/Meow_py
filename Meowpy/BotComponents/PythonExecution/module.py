@@ -54,9 +54,12 @@ async def run_script(context: Context, *, code: str):
     if striped.startswith("```python"):
         code = striped.removeprefix("```python").removesuffix("```")
 
-    else:
+    elif striped.startswith("```"):
         await context.reply("Please use \n\\```python\n<code>\n\\```\nformat!")
         return
+    else:
+        logger.info("No code format; using inline mode.")
+        code = f"print({code})"
 
     logger.info(
         "Received code from {} by {}\ndetail: {}",
