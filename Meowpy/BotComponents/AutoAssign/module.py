@@ -212,11 +212,11 @@ class DBWrapper:
         # logger.info("[{}] DB commit done", NAME)
 
     def close(self):
-        self.flush()
-        self.con.close()
+        self.__del__()
 
     def __del__(self):
         try:
+            self.flush()
             self.close()
         except sqlite3.ProgrammingError:
             pass

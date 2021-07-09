@@ -126,6 +126,7 @@ if __name__ == "__main__":
     intent = Intents.default()
     intent.members = True
     intent.messages = True
+    intent.reactions = True
 
     config = json.loads(args.config_path.read_text())
 

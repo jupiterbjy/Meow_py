@@ -43,7 +43,7 @@ async def chat_history_gen(
 ) -> AsyncGenerator[Message, None]:
     """
     Generates Messages between given dates.
-    :param guild: Server(guild) ID
+    :param guild: Server(guild)
     :param from_date: Filter message since given date.
     :param to_date: Filter message before given date, including exact same date.
     """
