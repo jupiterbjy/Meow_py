@@ -1,0 +1,9 @@
+{
+  "812458585274712075": {
+    "channel_source": 812458585924698129,
+    "channel_to_post": 845526032341532720,
+    "permitted_roles": [812458585522962513],
+    "marking_emoji": "\uD83C\uDFA8",
+    "delete_on_emoji_removal": false
+  }
+}
