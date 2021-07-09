@@ -1,4 +1,6 @@
+import json
 import asyncio
+import unicodedata
 from datetime import datetime, timedelta
 from typing import Union
 
@@ -110,24 +112,38 @@ async def joined(context: Context, member_id: Union[Member, int] = 0):
         logger.warning("No permission to write to channel [{}] [ID {}].", context.channel.name, context.channel.id)
 
 
-async def sticker_info(context: Context, *emojis: Emoji):
+async def sticker_info(context: Context, *emojis: Union[Emoji, str]):
     # ref from https://stackoverflow.com/questions/54937474/
 
+    logger.info("called, param: {}", emojis)
+
     for emoji in emojis:
-        embed = Embed(description=f"\\<:{emoji.name}:{emoji.id}\\>", title=f"emoji: {emoji}")
-        embed.add_field(name="id", value=emoji.id)
-        embed.add_field(name="name", value=emoji.name)
+        try:
+            embed = Embed(description=f"\\<:{emoji.name}:{emoji.id}\\>", title=f"emoji: {emoji}")
+            embed.add_field(name="id", value=emoji.id)
+            embed.add_field(name="name", value=emoji.name)
+
+        except AttributeError:
+            # Then unicode emoji
+
+            name = unicodedata.name(emoji).replace(" ", "_")
+            code = json.dumps(emoji)[1:-1]
+            # code = emoji.encode("unicode-escape").decode("utf8")
+
+            embed = Embed(description=code, title=f"Unicode emoji: {emoji}")
+            embed.add_field(name="id", value="None (Unicode)")
+            embed.add_field(name="utf standard name", value=name)
 
         await context.reply(embed=embed)
 
 
 async def sticker_info_error(context: Context, error):
 
+    logger.warning("Got error {}", error)
+
     if isinstance(error, EmojiNotFound):
         await context.reply("I can't find such emoji in this server!")
         return
-
-    logger.warning("Got error {}", error)
 
 
 __all__ = [
