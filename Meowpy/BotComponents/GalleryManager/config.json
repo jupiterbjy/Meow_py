@@ -1,8 +1,19 @@
 {
-  "812458585274712075": {
-    "channel_source": 812458585924698129,
-    "channel_to_post": 845526032341532720,
+  "812458585924698129": {
+    "post_channel": 863064470397517864,
     "permitted_roles": [812458585522962513],
+    "marking_emoji": "\uD83C\uDFA8",
+    "delete_on_emoji_removal": true
+  },
+  "850618584203526194": {
+    "post_channel": 863064498264735755,
+    "permitted_roles": [812458585522962513],
+    "marking_emoji": "\ud83c\udfa5",
+    "delete_on_emoji_removal": true
+  },
+  "783069235999014912": {
+    "post_channel": 863064470397517864,
+    "permitted_roles": [783559389847748618, 783972243671613441],
     "marking_emoji": "\uD83C\uDFA8",
     "delete_on_emoji_removal": false
   }

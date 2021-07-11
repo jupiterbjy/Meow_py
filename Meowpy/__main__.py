@@ -58,12 +58,16 @@ def assign_basic_commands(bot: commands.bot):
 
         add_failed.clear()
 
-        for command_repr in load_command(bot):
+        loaded = load_command(bot)
+
+        for representation in loaded:
             try:
-                command_repr.add(bot)
+                representation.add(bot)
             except Exception as err_:
-                add_failed[command_repr.name] = f"{type(err_).__name__}"
+                add_failed[representation.name] = f"{type(err_).__name__}"
                 logger.critical(err_)
+
+        return set(map(lambda x: x.name, loaded)), set(add_failed.keys())
 
     @bot.command(
         name="module",
@@ -77,15 +81,28 @@ def assign_basic_commands(bot: commands.bot):
 
         if action == "reload":
             if member.id in config["reload_whitelist"]:
-                logger.warning("Authorised reload call from '{}'", member.display_name)
-                assign_expansion_commands()
+                logger.info("Authorised reload call from '{}'", member.display_name)
+                new, failed = assign_expansion_commands()
+
+                embed = Embed(title="Reload report")
+
+                embed.add_field(name="Newly Loaded", value="\n".join(new - failed) + "\u200b")
+                embed.add_field(name="Failed to load", value="\n".join(failed) + "\u200b")
+
+                for key, val in LOADED_LIST.items():
+                    if "Error" in val:
+                        embed.add_field(name=f"{key} ❌", value=val, inline=False)
+
+                await context.reply(embed=embed)
+                return
+
             else:
                 logger.warning("Unauthorised reload call from '{}'", member.display_name)
 
-        if action in ("reload", "list"):
+        if action == "list":
             embed = Embed(
                 title="Loaded Commands/Cogs Status",
-                description="Commands shown on failed list will be disabled. Cogs are not a command.",
+                description="Commands shown on failed list is disabled.",
             )
 
             for key, val in LOADED_LIST.items():
@@ -127,6 +144,7 @@ if __name__ == "__main__":
     intent.members = True
     intent.messages = True
     intent.reactions = True
+    intent.webhooks = True
 
     config = json.loads(args.config_path.read_text())
 

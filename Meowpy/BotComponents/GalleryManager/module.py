@@ -2,11 +2,13 @@
 Auto assign module.
 """
 
+import re
 import pathlib
 import json
 import sqlite3
 from typing import Dict
 
+import aiohttp
 from discord.ext.commands import Cog, Bot
 from discord import (
     Embed,
@@ -17,6 +19,10 @@ from discord import (
     RawReactionActionEvent,
     PartialMessage,
     Guild,
+    WebhookMessage,
+    Webhook,
+    Attachment,
+    AsyncWebhookAdapter
 )
 from loguru import logger
 
@@ -32,7 +38,7 @@ config_path = pathlib.Path(__file__).parent.joinpath("config.json")
 configs = json.loads(config_path.read_text())
 
 # convert config to int server key
-configs = {int(guild_id): dict_ for guild_id, dict_ in configs.items()}
+configs = {int(channel_id): dict_ for channel_id, dict_ in configs.items()}
 
 # Test directory. If this fails Error will be caught from main bot so that's fine.
 DB_ROOT = pathlib.Path(__file__).parent.joinpath("database")
@@ -40,34 +46,9 @@ DB_ROOT.mkdir(exist_ok=True)
 
 DB_PATH = (DB_ROOT.joinpath(str(key)) for key in configs.keys())
 
+URL_PATTERN = re.compile(r"https?://(www\.)?[-a-zA-Z0-9@:%._+~#=]{2,256}\.[a-z]{2,4}\b([-a-zA-Z0-9@:%_+.~#?&/=]*)")
+
 # --------------------------------------
-
-
-# async def fetch_channel_messages(
-#     channel: TextChannel, emoji: str, whitelist_roles: Sequence[int]
-# ) -> AsyncGenerator[Message, None]:
-#     """
-#     Generates Messages between given dates.
-#     :param channel: TextChannel
-#     :param emoji: unicode emoji used for marking
-#     :param whitelist_roles: sequence of whitelisted roles.
-#     """
-#
-#     roles = set(whitelist_roles)
-#
-#     message: Message
-#     reaction: Union[Emoji, PartialEmoji, str]
-#     author: Member
-#     try:
-#         async for message in channel.history(limit=None, oldest_first=False):
-#
-#             if emoji in message.reactions.emoji and roles & set(message.author.roles):
-#                 yield message
-#
-#     except errors.Forbidden:
-#         logger.warning(
-#             "Cannot access to channel '{}' - ID: {}", channel.name, channel.id
-#         )
 
 
 class DBWrapper:
@@ -144,49 +125,74 @@ class ArtManagement(Cog):
         logger.info(f"[{type(self).__name__}] Unloading")
 
     @staticmethod
-    def generate_embed(source: Message) -> Embed:
+    async def webhook_send(url, content=None, embed=None, embeds=None, file=None) -> WebhookMessage:
+        async with aiohttp.ClientSession() as session:
+            webhook = Webhook.from_url(url, adapter=AsyncWebhookAdapter(session))
 
-        # if there's attachments, embed is ignored. Think it as priority.
+            sent = await webhook.send(content, embed=embed, embeds=embeds, file=file, wait=True)
+            return sent
+
+    @staticmethod
+    async def webhook_delete(url, message_id):
+        async with aiohttp.ClientSession() as session:
+            webhook = Webhook.from_url(url, adapter=AsyncWebhookAdapter(session))
+
+            await webhook.delete_message(message_id)
+
+    async def relay(self, message: Message, source: TextChannel) -> WebhookMessage:
+
+        # webhook_url = self.configs[source.id]["webhook_url"]
+        channel: TextChannel = source.guild.get_channel(self.configs[source.id]["post_channel"])
+
         try:
-            attachment = source.attachments[0]
+            attachment: Attachment = message.attachments[0]
         except IndexError:
             # this is link
-            embed = source.embeds[0]
-            embed.clear_fields()
+            embed_original = message.embeds[0]
+
+            # check if it's twitter, if so it's editable, give special work.
+            if embed_original.footer.text and "Twitter" in embed_original.footer.text:
+                # First clear unnecessary parts
+                embed_original.clear_fields()
+                embed_original.description = f"[Discord submission link]({message.jump_url})"
+                return await channel.send(embed=embed_original)
+
+            url = next(URL_PATTERN.finditer(message.content))[0]
+
+            # check if we caught url
+            content = url if url else message.content
+
+            return await channel.send(content=f"Original post: {message.jump_url}\n\n{content}")
+            # return await self.webhook_send(webhook_url, content=message.content, embed=embed)
+
         else:
-            # if "image" in attachment.content_type:
-            author: Member = source.author
+            # something was uploaded, create new embed.
 
             embed = Embed(color=Color.from_rgb(107, 110, 119))
+            embed.description = f"[Discord submission link]({message.jump_url})"
+            embed.timestamp = message.created_at
+
+            author: Member = message.author
             embed.set_author(name=author.display_name, icon_url=author.avatar_url)
+
             embed.set_footer(
                 text="Discord",
                 icon_url="https://discord.com/assets/f9bb9c4af2b9c32a2c5ee0014661546d.png",
             )
-            embed.set_image(url=attachment.url)
-            embed.timestamp = source.created_at
 
-        embed.description = f"[Discord submission link]({source.jump_url})"
-
-        return embed
-
-    async def relay(self, message: Message, channel: TextChannel) -> Message:
-
-        logger.info("On relay, channel: {}", channel.name)
-
-        embed = self.generate_embed(message)
-        sent = await channel.send(embed=embed)
-        return sent
+            # check type
+            if "image" in attachment.content_type:
+                embed.set_image(url=attachment.url)
+                return await channel.send(embed=embed)
+            else:
+                # consider as video for example
+                return await channel.send(embed=embed, file=await attachment.to_file())
 
     def validate_reactor(self, payload: RawReactionActionEvent):
 
         try:
-            config = self.configs[payload.guild_id]
+            config = self.configs[payload.channel_id]
         except (KeyError, TypeError):
-            return False
-
-        # check channel
-        if config["channel_source"] != payload.channel_id:
             return False
 
         # logger.info("Got emoji_name {}, target: {}", emoji.name, config["marking_emoji"])
@@ -194,8 +200,13 @@ class ArtManagement(Cog):
         if config["marking_emoji"] != payload.emoji.name:
             return False
 
-        # check if reactor has permission to mark it.
+        # check if post channel is within guild (to prevent attack)
         guild: Guild = self.bot.get_guild(payload.guild_id)
+        if not guild.get_channel(config["post_channel"]):
+            logger.critical("Channel {} does not exists in Guild {}!", config["post_channel"], guild.id)
+            return False
+
+        # check if reactor has permission to mark it.
         user: Member = guild.get_member(payload.user_id)
         if not set(config["permitted_roles"]) & set(role.id for role in user.roles):
             return False
@@ -211,16 +222,15 @@ class ArtManagement(Cog):
         logger.info(f"Permitted user {payload.user_id} marked message {payload.message_id}.")
 
         # check if message exists in db
-        if payload.message_id in self.db[payload.guild_id]:
+        if payload.message_id in self.db[payload.channel_id]:
             return
 
         # relay to gallery channel
         channel_source: TextChannel = self.bot.get_channel(payload.channel_id)
-        channel_target: TextChannel = self.bot.get_channel(self.configs[payload.guild_id]["channel_to_post"])
-        sent = await self.relay(await channel_source.fetch_message(payload.message_id), channel_target)
+        sent = await self.relay(await channel_source.fetch_message(payload.message_id), channel_source)
 
         # now prepare for db work
-        self.db[payload.guild_id][payload.message_id] = sent.id
+        self.db[payload.channel_id][payload.message_id] = sent.id
 
     @Cog.listener()
     async def on_raw_reaction_remove(self, payload: RawReactionActionEvent):
@@ -228,23 +238,23 @@ class ArtManagement(Cog):
         if not self.validate_reactor(payload):
             return
 
-        if not self.configs[payload.guild_id]["delete_on_emoji_removal"]:
+        if not self.configs[payload.channel_id]["delete_on_emoji_removal"]:
             return
 
         logger.info(
             f"Permitted user {payload.user_id} unmarked message {payload.message_id}."
         )
 
-        db = self.db[payload.guild_id]
+        db = self.db[payload.channel_id]
 
         if payload.message_id not in db:
             return
 
-        channel: TextChannel = self.bot.get_guild(payload.guild_id).get_channel(
-            self.configs[payload.guild_id]["channel_to_post"]
-        )
-        message: PartialMessage = channel.get_partial_message(db[payload.message_id])
+        # webhook_url = self.configs[payload.channel_id]["webhook_url"]
+        # await self.webhook_delete(webhook_url, db[payload.message_id])
+        channel: TextChannel = self.bot.get_channel(self.configs[payload.channel_id]["post_channel"])
 
+        message: PartialMessage = channel.get_partial_message(db[payload.message_id])
         await message.delete()
 
         del db[payload.message_id]
