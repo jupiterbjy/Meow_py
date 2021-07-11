@@ -8,7 +8,6 @@ import json
 import sqlite3
 from typing import Dict
 
-import aiohttp
 from discord.ext.commands import Cog, Bot
 from discord import (
     Embed,
@@ -124,20 +123,20 @@ class ArtManagement(Cog):
     def cog_unload(self):
         logger.info(f"[{type(self).__name__}] Unloading")
 
-    @staticmethod
-    async def webhook_send(url, content=None, embed=None, embeds=None, file=None) -> WebhookMessage:
-        async with aiohttp.ClientSession() as session:
-            webhook = Webhook.from_url(url, adapter=AsyncWebhookAdapter(session))
-
-            sent = await webhook.send(content, embed=embed, embeds=embeds, file=file, wait=True)
-            return sent
-
-    @staticmethod
-    async def webhook_delete(url, message_id):
-        async with aiohttp.ClientSession() as session:
-            webhook = Webhook.from_url(url, adapter=AsyncWebhookAdapter(session))
-
-            await webhook.delete_message(message_id)
+    # @staticmethod
+    # async def webhook_send(url, content=None, embed=None, embeds=None, file=None) -> WebhookMessage:
+    #     async with aiohttp.ClientSession() as session:
+    #         webhook = Webhook.from_url(url, adapter=AsyncWebhookAdapter(session))
+    #
+    #         sent = await webhook.send(content, embed=embed, embeds=embeds, file=file, wait=True)
+    #         return sent
+    #
+    # @staticmethod
+    # async def webhook_delete(url, message_id):
+    #     async with aiohttp.ClientSession() as session:
+    #         webhook = Webhook.from_url(url, adapter=AsyncWebhookAdapter(session))
+    #
+    #         await webhook.delete_message(message_id)
 
     async def relay(self, message: Message, source: TextChannel) -> WebhookMessage:
 
