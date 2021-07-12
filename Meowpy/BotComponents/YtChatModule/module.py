@@ -50,7 +50,6 @@ class YoutubeChatRelayCog(Cog):
         self.livechat: Union[LiveChatAsync, None] = None
 
         self.load_livechat()
-        self.relay_task.start()
 
     def cog_unload(self):
         logger.info("[ChatRelay] Stopping.")
@@ -121,6 +120,8 @@ class YoutubeChatRelayCog(Cog):
         :return:
         """
 
+        channel: TextChannel = self.bot.get_channel(discord_ch_id)
+
         async for chat in chat_data.async_items():
             chat: Chat
 
@@ -150,8 +151,6 @@ class YoutubeChatRelayCog(Cog):
             embed.timestamp = datetime.utcfromtimestamp(timestamp)
             # embed.set_footer(text=f"{utc_aware.strftime(type_ + ' %Y-%m-%d %H:%M:%S (UTC)')}")
 
-            channel: TextChannel = self.bot.get_channel(discord_ch_id)
-
             try:
                 await channel.send(embed=embed)
 
@@ -160,25 +159,35 @@ class YoutubeChatRelayCog(Cog):
 
     def load_livechat(self):
         try:
-            self.livechat.terminate()
+            if self.livechat.is_alive():
+                self.livechat.terminate()
         except AttributeError:
             pass
+
+        self.relay_task.stop()
 
         stream = LiveChatAsync(self.vid_id, callback=self.callback)
         stream.raise_for_status()
 
         self.livechat = stream
 
+        self.relay_task.start()
+
     @tasks.loop(count=1)
     async def relay_task(self):
 
         while self.livechat.is_alive():
-            await asyncio.sleep(3)
+            await asyncio.sleep(5)
 
         try:
             self.livechat.raise_for_status()
         except Exception as err:
             logger.warning("Got {}.\nDetail: {}", type(err).__name__, err)
+
+            channel: TextChannel = self.bot.get_channel(discord_ch_id)
+            embed = Embed(title=str(type(err).__name__), description=err)
+            await channel.send(embed=embed)
+
         logger.warning("Chat relaying of Stream {} ended.", self.vid_id)
 
     @command()
@@ -195,7 +204,7 @@ class YoutubeChatRelayCog(Cog):
             self.load_livechat()
         except Exception as err:
             logger.critical("Got {}.\nDetails: {}", type(err).__name__, err)
-            return
+            raise
 
         config["yt_vid_id"] = video_id
         config_path.write_text(json.dumps(config))
