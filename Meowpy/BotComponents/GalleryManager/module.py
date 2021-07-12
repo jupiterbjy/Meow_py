@@ -180,12 +180,21 @@ class ArtManagement(Cog):
             )
 
             # check type
-            if "image" in attachment.content_type:
+            try:
+                if "image" in attachment.content_type:
+                    embed.set_image(url=attachment.url)
+                    return await channel.send(embed=embed)
+                else:
+                    # consider as video for example
+                    return await channel.send(embed=embed, file=await attachment.to_file())
+            except TypeError:
+                # no type specified, but message exists. consider it as image in that case
+
+                # log attachment
+                logger.warning("Attachment has no content_type. Detail: {}", attachment)
+
                 embed.set_image(url=attachment.url)
                 return await channel.send(embed=embed)
-            else:
-                # consider as video for example
-                return await channel.send(embed=embed, file=await attachment.to_file())
 
     def validate_reactor(self, payload: RawReactionActionEvent):
 

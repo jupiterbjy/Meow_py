@@ -11,14 +11,16 @@
     "owner": "\uD83D\uDC8E"
   },
   "emoji_mapping": {
-    ":_cyanCute:": "<:_cyanCute:781054403426648064>",
-    ":_cyanCheer:": "<:cyan_hi:781054400726564864>",
-    ":_cyanCry:": "<:cyan_cry:781054403502276619>",
-    ":_cyanCool:": "<:cyan_salt:781054400642416660>",
-    ":_cyanShy:": "<:cyan_book:781054403209068554>",
-    ":_cyanHappy:": "<:cyan_heart:781054403297148948>",
-    ":_cyanNooo:": "<:cyan_NG:781054403067117578>",
-    ":_cyanAngry:": "<:_cyanAngry:781054403330179092>",
-    ":_cyanKusa:": "<:_cyanKusa:828050013694459957>"
+    ":_cyanCute:": "<:cyan_cute:855080514389803010>",
+    ":_cyanCheer:": "<:cyan_cheer:855080613404999700>",
+    ":_cyanCry:": "<:cyan_cry:855080595364642816>",
+    ":_cyanCool:": "<:cyan_cool:855080605008265266>",
+    ":_cyanShy:": "<:cyan_shy:855080585982115890>",
+    ":_cyanHappy:": "<:cyan_happy:855080538854522900>",
+    ":_cyanNooo:": "<:cyan_nooo:855080573272981524>",
+    ":_cyanAngry:": "<:cyan_angry:855080622833926174>",
+    ":_cyanKusa:": "<:cyan_kusa:855080562447482901>",
+    ":_cyanLightpink:": "<:cyan_light_pink:863821770041458748>",
+    ":_cyanLightpur:": "<:cyan_light_pur:863821795202170880>"
   }
 }
