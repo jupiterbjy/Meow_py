@@ -156,6 +156,7 @@ class DBWrapper:
             "CREATE TABLE IF NOT EXISTS ACCUMULATION(user_id INTEGER PRIMARY KEY, counter INTEGER, access DOUBLE)"
         )
 
+        self.con.commit()
         self.last_access = 1.0 if self.is_emtpy else self.get_last_timestamp()
 
     def count_up(self, message: Message):
@@ -172,6 +173,8 @@ class DBWrapper:
                 "INSERT INTO ACCUMULATION(user_id, counter, access) VALUES(?, ?, ?)",
                 (user_id, 1, timestamp),
             )
+
+        self.con.commit()
 
     def get_last_timestamp(self) -> float:
 
@@ -207,17 +210,13 @@ class DBWrapper:
 
         return not self.cursor.fetchone()[0]
 
-    def flush(self):
-        self.con.commit()
-        # logger.info("[{}] DB commit done", NAME)
-
     def close(self):
         self.__del__()
 
     def __del__(self):
         try:
-            self.flush()
-            self.close()
+            self.con.commit()
+            self.con.close()
         except sqlite3.ProgrammingError:
             pass
 
@@ -264,12 +263,6 @@ class DataHandler:
         for server_id in cls._server_ids:
             path_ = DB_PATH.joinpath(f"{server_id}_counter").with_suffix(".db")
             cls.dbs[server_id] = DBWrapper(path_)
-
-    @classmethod
-    def write(cls):
-
-        for server_id, db_ in cls.dbs.items():
-            db_.flush()
 
     @classmethod
     def close(cls):
@@ -458,13 +451,6 @@ async def trigger_catchup(context: Context):
     await DataHandler.catch_up(context.bot)
 
 
-async def flush_db(_: Context):
-
-    logger.info("[{}] called", NAME)
-
-    DataHandler.write()
-
-
 class AssignCog(Cog):
     def __init__(self, bot: Bot):
         self.bot = bot
@@ -472,11 +458,9 @@ class AssignCog(Cog):
 
         logger.info("[AssignCog] starting.")
         self.callable_wrapper.start()
-        self.task.start()
 
     def cog_unload(self):
         logger.info("[AssignCog] stopping.")
-        self.task.cancel()
         DataHandler.close()
 
     @tasks.loop(count=1)
@@ -493,12 +477,6 @@ class AssignCog(Cog):
         logger.info("[AssignCog] Loading up stored data.")
         DataHandler.load()
 
-    @tasks.loop(minutes=SAVE_INTERVAL)
-    async def task(self):
-        if DataHandler.prepared:
-            # logger.info("[AssignCog] saving comment accumulation.")
-            DataHandler.write()
-
     def __del__(self):
         DataHandler.close()
 
@@ -509,6 +487,5 @@ __all__ = [
     CommandRepresentation(
         member_stat, name="stat", help="Shows your stats in this server."
     ),
-    # CommandRepresentation(trigger_catchup, name="catchup", help="Manually triggers message catchup."),
-    # CommandRepresentation(flush_db, name="flushdb", help="Manually commit changes to db.")
+    # CommandRepresentation(trigger_catchup, name="catchup", help="Manually triggers message catchup.")
 ]
