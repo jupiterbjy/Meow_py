@@ -12,7 +12,7 @@ from discord.ext import commands
 from discord import DiscordException, Embed, Game, Intents, Member
 from loguru import logger
 
-from DynamicLoader import load_command, LOADED_LIST
+from DynamicLoader import load_command, LOADED_LIST, LOADED_FILE_HASH
 
 
 def assign_basic_commands(bot: commands.bot):
@@ -74,12 +74,19 @@ def assign_basic_commands(bot: commands.bot):
         help="Shows/reload dynamically loaded commands. "
         "Use parameter 'reload' to reload edited/newly added modules.",
     )
-    async def module(context: commands.Context, action="list"):
+    async def module(context: commands.Context, action: str = "list", target: str = ""):
 
         logger.info("[{}] called", action)
         member: Member = context.author
 
         if action == "reload":
+
+            if target:
+                try:
+                    LOADED_FILE_HASH.pop(target)
+                except KeyError:
+                    pass
+
             if member.id in config["reload_whitelist"]:
                 logger.info("Authorised reload call from '{}'", member.display_name)
                 new, failed = assign_expansion_commands()
