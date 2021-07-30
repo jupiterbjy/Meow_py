@@ -34,9 +34,12 @@ async def countdown(context: Context, number: int = 5):
     delta = timedelta(seconds=1)
     last = datetime.now()
 
-    for n in range(1, number + 1):
-        await context.reply(f"Counting {n}/{number}!")
+    message = await context.reply(f"Counting 1/{number}!")
+
+    for n in range(2, number + 1):
         await asyncio.sleep(abs((last := (last + delta)) - datetime.now()).total_seconds())
+
+        await message.edit(content=f"Counting {n}/{number}!")
 
 
 async def member_chat_history_gen(channel, target_member: Member, max_date=3):
