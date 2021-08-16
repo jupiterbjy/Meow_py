@@ -19,6 +19,8 @@ def assign_basic_commands(bot: commands.bot):
 
     first_setup_done = False
 
+    logger.info("Adding event first_call")
+
     async def first_call():
 
         assign_expansion_commands()
@@ -29,6 +31,7 @@ def assign_basic_commands(bot: commands.bot):
             await bot.change_presence(activity=Game(name=activity))
 
     # --------------------------------------
+    logger.info("Adding event on_ready")
 
     @bot.event
     async def on_ready():
@@ -69,6 +72,8 @@ def assign_basic_commands(bot: commands.bot):
 
         return set(map(lambda x: x.name, loaded)), set(add_failed.keys())
 
+    logger.info("Adding command reload")
+
     @bot.command(
         name="module",
         help="Shows/reload dynamically loaded commands. "
@@ -76,7 +81,7 @@ def assign_basic_commands(bot: commands.bot):
     )
     async def module(context: commands.Context, action: str = "list", target: str = ""):
 
-        logger.info("[{}] called", action)
+        logger.info("called, param: {}, {}", action, target)
         member: Member = context.author
 
         if action == "reload":
@@ -155,6 +160,8 @@ if __name__ == "__main__":
 
     config = json.loads(args.config_path.read_text())
 
+    logger.info("Configuration loaded.")
+
     bot_ = commands.Bot(
         command_prefix=config["prefix"],
         description=config["help_message"],
@@ -162,11 +169,15 @@ if __name__ == "__main__":
         intents=intent,
     )
 
+    logger.info("Assigning submodules")
+
     # log config
-    log_p = pathlib.Path(__file__).parent.joinpath("log/{time}.log")
-    logger.add(log_p, rotation="5MB", retention="7 days", compression="zip")
+    # log_p = pathlib.Path(__file__).parent.joinpath("log/{time}.log")
+    # logger.add(log_p, rotation="5MB", retention="7 days", compression="zip")
 
     assign_basic_commands(bot_)
+
+    logger.info("Starting bot")
 
     try:
         bot_.run(config["discord_bot_token"])

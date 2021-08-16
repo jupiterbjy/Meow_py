@@ -67,7 +67,7 @@ def load_command(bot: Bot) -> List[RepresentationBase]:
 
             try:
                 command_list = getattr(module, "__all__")
-            except NameError:
+            except (NameError, AttributeError):
                 logger.critical("Missing name __all__ in global scope of the script {}, skipping.", script_path.name)
                 state = "Reason: Missing __all__"
             else:
