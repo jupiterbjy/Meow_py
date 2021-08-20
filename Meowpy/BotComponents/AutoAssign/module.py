@@ -7,11 +7,11 @@ import pathlib
 import json
 import sqlite3
 from datetime import datetime, timedelta
-from typing import Dict, Union, Any, AsyncGenerator
+from typing import Dict, Union, Any, AsyncGenerator, Tuple, List
 
 from discord.ext import tasks
 from discord.ext.commands import Cog, Bot, Context
-from discord import Embed, Member, Role, Guild, Message, Asset, errors
+from discord import Embed, Member, Role, Guild, Message, Asset, errors, AllowedMentions
 from loguru import logger
 
 from .. import EventRepresentation, CogRepresentation, CommandRepresentation
@@ -202,6 +202,14 @@ class DBWrapper:
         )
 
         return bool(self.cursor.fetchone()[0])
+
+    def get_top_n(self, results=5) -> List[Tuple[int, int, float]]:
+
+        self.cursor.execute(
+            f"SELECT * FROM ACCUMULATION ORDER BY COUNTER DESC LIMIT {results}"
+        )
+
+        return self.cursor.fetchall()
 
     @property
     def is_emtpy(self) -> bool:
@@ -444,6 +452,43 @@ async def on_message_trigger(message: Message):
     )
 
 
+async def member_top(context: Context, results: int = 5):
+
+    logger.info("called, param: {}", results)
+
+    if results > 10:
+        results = 10
+
+    try:
+        db = DataHandler.dbs[context.guild.id]
+    except KeyError:
+        logger.info("DB data for Server {} does not exists", context.guild.id)
+        return
+
+    member_list = db.get_top_n(results)
+    embed = Embed(
+        title=f"Highest message count top {results}",
+        timestamp=context.message.created_at,
+    )
+
+    ranks = [str(n) for n in range(1, len(member_list) + 1)]
+    top_ids = (f"<@{member_id}>" for member_id, _, _ in member_list)
+    top_chats = (f"{chat}" for _, chat, _ in member_list)
+
+    embed.add_field(name="Rank", value="\n".join(ranks))
+    embed.add_field(name="Name", value="\n".join(top_ids))
+    embed.add_field(name="Count", value="\n".join(top_chats))
+
+    try:
+        await context.reply(embed=embed, allowed_mentions=AllowedMentions(users=False))
+    except errors.Forbidden:
+        logger.warning(
+            "No permission to write to channel [{}] [ID {}].",
+            context.channel.name,
+            context.channel.id,
+        )
+
+
 async def trigger_catchup(context: Context):
 
     logger.info("[{}] called", NAME)
@@ -486,6 +531,9 @@ __all__ = [
     EventRepresentation(on_message_trigger, "on_message"),
     CommandRepresentation(
         member_stat, name="stat", help="Shows your stats in this server."
+    ),
+    CommandRepresentation(
+        member_top, name="top", help="Shows top N member with most chat count."
     ),
     # CommandRepresentation(trigger_catchup, name="catchup", help="Manually triggers message catchup.")
 ]
