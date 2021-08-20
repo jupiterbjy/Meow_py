@@ -2,6 +2,8 @@
 Linux Command sets for showing system information where bot is running.
 """
 import asyncio
+import json
+import pathlib
 
 from discord.ext.commands import Context
 from discord import Embed
@@ -10,22 +12,24 @@ from loguru import logger
 from .. import CommandRepresentation
 
 
-linux_info_command = (
-    """/etc/update-motd.d/00-header && /etc/update-motd.d/90-updates-available"""
-)
-
-shell_field_commands = {
-    "CPU / RAM": '''echo CPU `lscpu | grep 'CPU MHz' | awk -F : '{gsub(/ /,""); print $2}'` MHz \| RAM `free -m | awk '/Mem:/ { printf("%3.1f%%", $3/$2*100) }'`''',
-    "CPU Model": """cat /proc/cpuinfo | awk -F : '/model name/ {print $2}' | head -1 | xargs""",
-    "Disk usage": """df -lh --total -x tmpfs | tail -1 | awk ' {print "Total", $2, "| Used", $3, "| Free", $4 }'""",
-}
+config_path = pathlib.Path(__file__).parent.joinpath("config.json")
+loaded_config = json.loads(config_path.read_text())
 
 
 async def system_information(context: Context):
-    logger.debug("Call on sysinfo.")
+    logger.debug("Called")
+
+    guild_id = str(context.guild.id)
+    author_id = context.author.id
+
+    if guild_id not in loaded_config or author_id not in loaded_config[guild_id]["command_whitelist"]:
+        logger.warning("Unauthorized call by [{}]", author_id)
+
+        await context.reply("You're not in whitelist!")
+        return
 
     description_proc = await asyncio.create_subprocess_shell(
-        linux_info_command,
+        loaded_config[guild_id]["linux_info_command"],
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
@@ -37,7 +41,7 @@ async def system_information(context: Context):
 
     embed = Embed(title="Brief System information", description=description)
 
-    for key, val in shell_field_commands.items():
+    for key, val in loaded_config[guild_id]["commands"].items():
         proc = await asyncio.create_subprocess_shell(
             val, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
         )
