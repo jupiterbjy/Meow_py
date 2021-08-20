@@ -77,7 +77,7 @@ def discord_stat_embed_gen(member: Member):
 
     thumb: Asset = member.avatar_url
 
-    embed = Embed(title=f"{member.display_name}", colour=role.color if role else None)
+    embed = Embed(title=f"{member.display_name}", colour=role.color if role else None, timestamp=datetime.utcnow())
 
     now = datetime.utcnow()
     discord_join = now - member.created_at
@@ -362,7 +362,7 @@ async def member_stat(context: Context, member_id: Union[Member, int] = 0):
     )
 
     try:
-        await context.reply(embed=embed)
+        await context.reply(embed=embed, mention_author=False, allowed_mentions=AllowedMentions(users=False))
     except errors.Forbidden:
         logger.warning(
             "No permission to write to channel [{}] [ID {}].",
@@ -459,6 +459,9 @@ async def member_top(context: Context, results: int = 5):
     if results > 10:
         results = 10
 
+    if results < 1:
+        results = 1
+
     try:
         db = DataHandler.dbs[context.guild.id]
     except KeyError:
@@ -480,7 +483,11 @@ async def member_top(context: Context, results: int = 5):
     embed.add_field(name="Count", value="\n".join(top_chats))
 
     try:
-        await context.reply(embed=embed, allowed_mentions=AllowedMentions(users=False))
+        await context.reply(
+            embed=embed,
+            mention_author=False,
+            allowed_mentions=AllowedMentions(users=False),
+        )
     except errors.Forbidden:
         logger.warning(
             "No permission to write to channel [{}] [ID {}].",
