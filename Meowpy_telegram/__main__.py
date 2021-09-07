@@ -3,6 +3,7 @@ import pathlib
 import logging
 import argparse
 import importlib
+import traceback
 from typing import List, Union
 
 from telegram.ext import Updater, Dispatcher, CommandHandler, Filters, MessageHandler
@@ -36,8 +37,10 @@ def load_command():
                 script.parent.name,
                 err,
             )
+            traceback.print_exc()
 
         else:
+            logger.info("Successfully loaded from {}", script.parent.name)
             yield from command_list
 
 
@@ -81,7 +84,7 @@ if __name__ == "__main__":
 
     logging.basicConfig(
         format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        level=logging.DEBUG,
+        level=logging.INFO,
     )
 
     main(Updater(token=loaded_config["telegram_bot_token"]))

@@ -39,5 +39,17 @@
         </library>
       </libraries>
     </data-source>
+    <data-source source="LOCAL" name="757313446730793101_counter" uuid="81c2f4a0-cd6f-4d43-9b0b-cb990a7d4a22">
+      <driver-ref>sqlite.xerial</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.sqlite.JDBC</jdbc-driver>
+      <jdbc-url>jdbc:sqlite:C:\Users\jupiterbjy\AppData\Roaming\JetBrains\PyCharm2021.2\scratches\757313446730793101_counter.db</jdbc-url>
+      <working-dir>$ProjectFileDir$</working-dir>
+      <libraries>
+        <library>
+          <url>file://$APPLICATION_CONFIG_DIR$/jdbc-drivers/Xerial SQLiteJDBC/3.34.0/sqlite-jdbc-3.34.0.jar</url>
+        </library>
+      </libraries>
+    </data-source>
   </component>
 </project>

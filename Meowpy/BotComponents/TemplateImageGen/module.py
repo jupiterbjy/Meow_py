@@ -129,7 +129,7 @@ def main_sandwiched(
     temp_img = main(
         margin, bg_img_bytes, fore_img_bytes, background, angle_, width, offset_x, offset_y
     )
-    final_img = overlay_image(top_img, temp_img, 0, 0)
+    final_img = Image.alpha_composite(temp_img, top_img)
 
     return final_img
 
