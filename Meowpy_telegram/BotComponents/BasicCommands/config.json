@@ -1,0 +1,15 @@
+{
+  "tz_table": {
+    "pdt": "pst8pdt",
+    "pst": "pst8pdt",
+    "kst": "Asia/Seoul",
+    "jst": "Asia/Tokyo",
+    "cst": "Asia/Shanghai",
+    "pht": "Asia/Manila",
+    "wib": "Asia/Jakarta",
+    "ast": "Asia/Qatar",
+    "bst": "Europe/London",
+    "est": "America/New_York"
+  },
+  "time_format": "%m-%d %H:%M"
+}

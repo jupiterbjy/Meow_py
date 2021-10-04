@@ -16,7 +16,7 @@ def install():
         print(f"In [{main_req}]:\n{' '.join(modules)}\n")
         sets.update(modules)
 
-        for path_ in root.joinpath("Meowpy/BotComponents").iterdir():
+        for path_ in root.joinpath("BotComponents").iterdir():
             if not path_.is_dir():
                 continue
 

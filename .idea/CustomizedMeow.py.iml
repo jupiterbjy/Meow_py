@@ -5,6 +5,7 @@
       <sourceFolder url="file://$MODULE_DIR$/Meowpy" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/Meowpy_telegram" isTestSource="false" />
       <sourceFolder url="file://$MODULE_DIR$/Meowpy_telegram/BotComponents/ChannelGroupForward" isTestSource="false" />
+      <sourceFolder url="file://$MODULE_DIR$/Meowpy_telegram/BotComponents/GroupAutoKick" isTestSource="false" />
       <excludeFolder url="file://$MODULE_DIR$/venv" />
     </content>
     <orderEntry type="jdk" jdkName="Python 3.9 (Meow_py)" jdkType="Python SDK" />
