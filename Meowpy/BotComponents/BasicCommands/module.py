@@ -12,6 +12,13 @@ from loguru import logger
 from BotComponents import CommandRepresentation
 
 
+async def ping(context: Context):
+
+    logger.info("ping by {}", context.author)
+
+    await context.reply("Pong!")
+
+
 async def echo(context: Context, *args):
 
     logger.info("call on echo by {}\ncontent: {}", context.author, args)
@@ -150,6 +157,11 @@ async def sticker_info_error(context: Context, error):
 
 
 __all__ = [
+    CommandRepresentation(
+        ping,
+        name="ping",
+        help="",
+    ),
     CommandRepresentation(
         echo,
         name="echo",
