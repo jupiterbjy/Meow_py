@@ -28,7 +28,7 @@ async def ping(context: Context):
 
     logger.info("ping by {}, {}ms", context.author, diff)
 
-    await context.reply("Pong! {diff}ms!")
+    await context.reply(f"Pong! {diff}ms!")
 
 
 async def echo(context: Context, *args):
