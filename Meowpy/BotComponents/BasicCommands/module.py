@@ -1,29 +1,83 @@
 import json
+import pathlib
 import asyncio
 import unicodedata
 from datetime import datetime, timedelta
-from typing import Union
+from typing import Union, Dict, List
 
+import pytz
+from dateutil import parser
 from discord.ext.commands import Context
 from discord.ext.commands.errors import EmojiNotFound
-from discord import Embed, Member, Role, Asset, Emoji, errors
+from discord import Embed, Member, Role, Asset, Emoji, errors, Message
 from loguru import logger
 
 from BotComponents import CommandRepresentation
 
 
+ROOT = pathlib.Path(__file__).parent
+config_path = ROOT.joinpath("config.json")
+config: Dict = json.loads(config_path.read_text())
+
+
 async def ping(context: Context):
+    recv_ts = datetime.utcnow()
+    create_ts = context.message.created_at
 
-    logger.info("ping by {}", context.author)
+    diff = (recv_ts - create_ts).total_seconds() * 1000
 
-    await context.reply("Pong!")
+    logger.info("ping by {}, {}ms", context.author, diff)
+
+    await context.reply("Pong! {diff}ms!")
 
 
 async def echo(context: Context, *args):
 
-    logger.info("call on echo by {}\ncontent: {}", context.author, args)
+    logger.info("call by {}\ncontent: {}", context.author, args)
 
     await context.reply(" ".join(args))
+
+
+async def convert_tz(context: Context, *args):
+    message: Message = context.message.message
+    logger.debug("call by {}, args: {}", context.author, args)
+
+    # name the config for my own good
+    time_format = config["time_format"]
+    tz_table = config["tz_table"]
+
+    err_msg = f"Please provide with <local_timezone> <destination_timezone> <time_string> format!"
+
+    if not args or len(args) != 4:
+        await message.reply(err_msg)
+        return
+
+    args: List[str]
+    local_tz, dest_tz, *time_str = args
+    time_str: str = " ".join(time_str)
+
+    # check if alias is in table, else use what provided
+    if local_tz.lower() in tz_table:
+        local_tz = tz_table[local_tz.lower()]
+
+    if dest_tz.lower() in tz_table:
+        dest_tz = tz_table[dest_tz.lower()]
+
+    try:
+        tz_src = pytz.timezone(local_tz)
+        tz_dest = pytz.timezone(dest_tz)
+
+        input_datetime = parser.parse(time_str)
+
+    except (ValueError, pytz.exceptions.UnknownTimeZoneError):
+        await message.reply_text(err_msg)
+        return
+
+    src_time = tz_src.localize(input_datetime)
+    dest_time = src_time.astimezone(tz_dest)
+    await message.reply(f"{src_time.strftime(time_format)} {local_tz}\n"
+                        f"{dest_time.strftime(time_format)} {dest_tz}\n"
+                        f"(Will be updated to use combo box later)")
 
 
 async def countdown(context: Context, number: int = 5):
@@ -161,6 +215,11 @@ __all__ = [
         ping,
         name="ping",
         help="",
+    ),
+    CommandRepresentation(
+        convert_tz,
+        name="tzconv",
+        help="<local_timezone> <destination_timezone> <time_str}>",
     ),
     CommandRepresentation(
         echo,

@@ -3,11 +3,11 @@ Module for basic commands
 """
 import pathlib
 import json
-import pytz
-from datetime import datetime
 from typing import Dict, List
 
-from telegram.ext import CallbackContext, Filters, CommandHandler
+import pytz
+from dateutil import parser
+from telegram.ext import CallbackContext, CommandHandler
 from telegram import Update
 
 from loguru import logger
@@ -30,12 +30,15 @@ def convert_tz(update: Update, context: CallbackContext):
     time_format = config["time_format"]
     tz_table = config["tz_table"]
 
+    err_msg = f"Please provide with <local_timezone> <destination_timezone> <time_string> format!"
+
     if not args or len(args) != 4:
-        message.reply_text(f"Please provide with <local_timezone> <destination timezone> <{time_format}> format!")
+        message.reply_text(err_msg)
         return
 
     args: List[str]
-    local_tz, dest_tz, month_day, hour_minute = args
+    local_tz, dest_tz, *time_str = args
+    time_str: str = " ".join(time_str)
 
     # check if alias is in table, else use what provided
     if local_tz.lower() in tz_table:
@@ -45,22 +48,18 @@ def convert_tz(update: Update, context: CallbackContext):
         dest_tz = tz_table[dest_tz.lower()]
 
     try:
-        # I can't use dateutil parsers due to overlapping names
-
         tz_src = pytz.timezone(local_tz)
         tz_dest = pytz.timezone(dest_tz)
 
-        month, day = map(int, month_day.split("-"))
-        hour, minute = map(int, hour_minute.split(":"))
+        input_datetime = parser.parse(time_str)
 
-    except pytz.exceptions.UnknownTimeZoneError:
-        message.reply_text(f"Please provide with <local_timezone> <destination timezone> <{time_format}> format!")
+    except (ValueError, pytz.exceptions.UnknownTimeZoneError):
+        message.reply_text(err_msg)
         return
 
-    year = datetime.now().year
-    src_time = datetime(year, month, day, hour, minute, tzinfo=tz_src)
+    src_time = tz_src.localize(input_datetime)
     dest_time = src_time.astimezone(tz_dest)
-    message.reply_text(f"{src_time.strftime('%m-%d %H:%M')} {local_tz}\n{dest_time.strftime('%m-%d %H:%M')} {dest_tz}")
+    message.reply_text(f"{src_time.strftime(time_format)} {local_tz}\n{dest_time.strftime(time_format)} {dest_tz}")
 
 
 __all__ = [
