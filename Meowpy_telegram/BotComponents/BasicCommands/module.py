@@ -32,13 +32,16 @@ def convert_tz(update: Update, context: CallbackContext):
 
     err_msg = f"Please provide with <local_timezone> <destination_timezone> <time_string> format!"
 
-    if not args or len(args) != 4:
+    args: List[str]
+    try:
+        local_tz, dest_tz, *time_str = args
+    except ValueError:
         message.reply_text(err_msg)
         return
 
-    args: List[str]
-    local_tz, dest_tz, *time_str = args
     time_str: str = " ".join(time_str)
+
+    logger.debug(f"{local_tz}, {dest_tz}, {time_str}")
 
     # check if alias is in table, else use what provided
     if local_tz.lower() in tz_table:
@@ -53,7 +56,8 @@ def convert_tz(update: Update, context: CallbackContext):
 
         input_datetime = parser.parse(time_str)
 
-    except (ValueError, pytz.exceptions.UnknownTimeZoneError):
+    except (ValueError, pytz.exceptions.UnknownTimeZoneError) as err:
+        logger.debug(err)
         message.reply_text(err_msg)
         return
 
