@@ -49,7 +49,7 @@ async def ping(context: Context):
 
     logger.info("ping by {}, {}ms", context.author, diff)
 
-    await context.reply(f"Pong! {diff}ms!")
+    await context.reply(f"Pong! {diff:.2f}ms!")
 
 
 async def echo(context: Context, *args):
@@ -60,7 +60,7 @@ async def echo(context: Context, *args):
 
 
 async def convert_tz(context: Context, *args):
-    message: Message = context.message.message
+    message: Message = context.message
     logger.debug("call by {}, args: {}", context.author, args)
 
     # name the config for my own good
@@ -69,12 +69,14 @@ async def convert_tz(context: Context, *args):
 
     err_msg = f"Please provide with <local_timezone> <destination_timezone> <time_string> format!"
 
-    if not args or len(args) != 4:
+
+    args: List[str]
+    try:
+        local_tz, dest_tz, *time_str = args
+    except ValueError:
         await message.reply(err_msg)
         return
 
-    args: List[str]
-    local_tz, dest_tz, *time_str = args
     time_str: str = " ".join(time_str)
 
     # check if alias is in table, else use what provided
