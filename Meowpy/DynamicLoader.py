@@ -4,7 +4,7 @@ Dynamic module re-loader to load modules again.
 
 import pathlib
 import importlib
-from typing import List, Iterable, Tuple, Generator
+from typing import List, Iterable, Tuple, Generator, Dict
 from loguru import logger
 from discord.ext.commands import Bot
 
@@ -15,7 +15,7 @@ FOLDER_NAME = "BotComponents"
 LOCATION = pathlib.Path(__file__).parent.joinpath(FOLDER_NAME)
 LOADED_MODULE = {}
 LOADED_LIST = {}
-LOADED_FILE_HASH = {}
+LOADED_FILE_HASH: Dict[pathlib.Path, int] = {}
 
 
 def load_command(bot: Bot) -> List[RepresentationBase]:

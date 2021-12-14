@@ -86,17 +86,19 @@ def assign_basic_commands(bot: commands.bot):
 
         if action == "reload":
 
-            if target:
-                try:
-                    LOADED_FILE_HASH.pop(target)
-                except KeyError:
-                    pass
-
             if member.id in config["reload_whitelist"]:
                 logger.info("Authorised reload call from '{}'", member.display_name)
-                new, failed = assign_expansion_commands()
 
                 embed = Embed(title="Reload report")
+
+                if target:
+                    # find a matching key
+                    key = [k for k in LOADED_FILE_HASH.keys() if k.stem == target]
+                    try:
+                        LOADED_FILE_HASH.pop(key[0])
+                    except (KeyError, IndexError):
+                        embed.description = f"Reload fail: {target} is not found."
+                new, failed = assign_expansion_commands()
 
                 embed.add_field(name="Newly Loaded", value="\n".join(new - failed) + "\u200b")
                 embed.add_field(name="Failed to load", value="\n".join(failed) + "\u200b")

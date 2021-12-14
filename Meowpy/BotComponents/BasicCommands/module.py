@@ -20,6 +20,27 @@ config_path = ROOT.joinpath("config.json")
 config: Dict = json.loads(config_path.read_text())
 
 
+async def time(context: Context):
+
+    logger.info("call by {}", context.author)
+
+    format_ = "%mM %dD %H:%M:%S"
+    now_dt = datetime.now()
+    utc_now_dt = now_dt.utcfromtimestamp(now_dt.timestamp())
+
+    now = now_dt.strftime(format_)
+    utc_now = utc_now_dt.strftime(format_)
+    msg_utc = context.message.created_at.strftime(format_)
+
+    diff = f"{(now_dt.utcnow() - context.message.created_at).total_seconds():.2f} sec"
+
+    embed = Embed(title="Server time")
+    embed.add_field(name="\u200b", value="\n".join(("Server", "Server(UTC)", "Message(UTC)", "Diff")))
+    embed.add_field(name="\u200b", value="\n".join((now, utc_now, msg_utc, diff)))
+
+    await context.reply(embed=embed)
+
+
 async def ping(context: Context):
     recv_ts = datetime.utcnow()
     create_ts = context.message.created_at
@@ -211,6 +232,11 @@ async def sticker_info_error(context: Context, error):
 
 
 __all__ = [
+    CommandRepresentation(
+        time,
+        name="time",
+        help="Display server time",
+    ),
     CommandRepresentation(
         ping,
         name="ping",
