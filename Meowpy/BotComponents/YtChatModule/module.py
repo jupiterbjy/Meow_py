@@ -35,8 +35,12 @@ def argb_to_rgb(argb: int):
     if not argb:
         return 0
 
-    # converting int to hex string, strip 0x, zfill to 8 width argb, strip a.
+    # converting int to hex string, strip 0x, zfill to 8 width argb, strip alpha.
     return int(hex(argb)[2:].zfill(8)[2:], base=16)
+
+
+def error_to_embed(err: Exception):
+    return Embed(title=str(type(err).__name__), description=err)
 
 
 class YoutubeChatRelayCog(Cog):
@@ -175,20 +179,34 @@ class YoutubeChatRelayCog(Cog):
 
     @tasks.loop(count=1)
     async def relay_task(self):
+        channel: TextChannel = self.bot.get_channel(discord_ch_id)
 
-        while self.livechat.is_alive():
-            await asyncio.sleep(5)
+        while True:
+            await channel.send("Chat relay started!")
 
-        try:
-            self.livechat.raise_for_status()
-        except Exception as err:
-            logger.warning("Got {}.\nDetail: {}", type(err).__name__, err)
+            while self.livechat.is_alive():
+                await asyncio.sleep(5)
 
-            channel: TextChannel = self.bot.get_channel(discord_ch_id)
-            embed = Embed(title=str(type(err).__name__), description=err)
-            await channel.send(embed=embed)
+            try:
+                self.livechat.raise_for_status()
 
-        logger.warning("Chat relaying of Stream {} ended.", self.vid_id)
+            except Exception as err:
+                logger.warning("Got {}.\nDetail: {}", type(err).__name__, err)
+
+                embed = error_to_embed(err)
+                embed.set_footer(text="Retrying in 1 minute")
+                await channel.send(embed=embed)
+
+            logger.warning("Chat relaying of Stream {} ended. Restart in 1 minute", self.vid_id)
+            await asyncio.sleep(60)
+
+            try:
+                self.load_livechat()
+
+            except Exception as err:
+                logger.critical("Got {}.\nDetails: {}", type(err).__name__, err)
+                await channel.send(embed=error_to_embed(err))
+                return
 
     @command()
     async def change_stream_id(self, context: Context, video_id: str):
@@ -198,16 +216,23 @@ class YoutubeChatRelayCog(Cog):
         if context.author.id not in command_whitelist:
             await context.reply("Your user ID is not listed in whitelist.")
             logger.warning("User '{}' is not in whitelist.", context.author.display_name)
+
             return
 
         try:
             self.load_livechat()
-        except Exception as err:
-            logger.critical("Got {}.\nDetails: {}", type(err).__name__, err)
-            raise
 
-        config["yt_vid_id"] = video_id
-        config_path.write_text(json.dumps(config))
+        except Exception as err:
+            message = f"Got {type(err).__name__}.\nDetails: {err}"
+            logger.critical(message)
+
+        else:
+            message = "Reload complete!"
+
+            config["yt_vid_id"] = video_id
+            config_path.write_text(json.dumps(config))
+
+        await context.reply(message)
 
 
 # async def wrap():
