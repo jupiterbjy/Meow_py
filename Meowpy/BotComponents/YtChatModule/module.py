@@ -163,19 +163,15 @@ class YoutubeChatRelayCog(Cog):
 
     def load_livechat(self):
         try:
-            if self.livechat.is_alive():
-                self.livechat.terminate()
-        except AttributeError:
+            # if self.livechat.is_alive():
+            self.livechat.terminate()
+        except (AttributeError, RuntimeError):
             pass
-
-        self.relay_task.stop()
 
         stream = LiveChatAsync(self.vid_id, callback=self.callback)
         stream.raise_for_status()
 
         self.livechat = stream
-
-        self.relay_task.start()
 
     @tasks.loop(count=1)
     async def relay_task(self):
@@ -197,8 +193,8 @@ class YoutubeChatRelayCog(Cog):
                 embed.set_footer(text="Retrying in 1 minute")
                 await channel.send(embed=embed)
 
-            logger.warning("Chat relaying of Stream {} ended. Restart in 1 minute", self.vid_id)
-            await asyncio.sleep(60)
+            logger.warning("Chat relaying of Stream {} ended. Restart in 5 minute", self.vid_id)
+            await asyncio.sleep(300)
 
             try:
                 self.load_livechat()
@@ -207,6 +203,19 @@ class YoutubeChatRelayCog(Cog):
                 logger.critical("Got {}.\nDetails: {}", type(err).__name__, err)
                 await channel.send(embed=error_to_embed(err))
                 return
+
+    @command()
+    async def stop_relay(self, context: Context):
+
+        if context.author.id not in command_whitelist:
+            await context.reply("Your user ID is not listed in whitelist.")
+            logger.warning("User '{}' is not in whitelist.", context.author.display_name)
+
+            return
+
+        self.relay_task.stop()
+        self.livechat.terminate()
+        await context.reply("Stopped!")
 
     @command()
     async def change_stream_id(self, context: Context, video_id: str):
@@ -220,7 +229,9 @@ class YoutubeChatRelayCog(Cog):
             return
 
         try:
+            self.relay_task.stop()
             self.load_livechat()
+            self.relay_task.start()
 
         except Exception as err:
             message = f"Got {type(err).__name__}.\nDetails: {err}"

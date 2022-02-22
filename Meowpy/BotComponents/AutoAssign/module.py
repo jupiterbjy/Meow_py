@@ -195,6 +195,19 @@ class DBWrapper:
 
         return 0
 
+    def get_user_rank(self, user_id) -> Union[int, None]:
+
+        if user_id not in self:
+            return None
+
+        self.cursor.execute(
+            f"SELECT rank FROM ("
+            f"SELECT user_id, RANK() OVER (ORDER BY counter DESC) rank FROM ACCUMULATION"
+            f") WHERE user_id=?",
+            (user_id,)
+        )
+        return self.cursor.fetchone()[0]
+
     def user_exists(self, user_id: int) -> bool:
 
         self.cursor.execute(
@@ -220,6 +233,12 @@ class DBWrapper:
 
     def close(self):
         self.__del__()
+
+    def __len__(self):
+        return self.cursor.execute("SELECT COUNT(*) FROM ACCUMULATION").fetchone()[0]
+
+    def __contains__(self, user_id: int):
+        return self.user_exists(user_id)
 
     def __del__(self):
         try:
@@ -264,6 +283,17 @@ class DataHandler:
         target_server.count_up(message)
 
         return True
+
+    @classmethod
+    def total_member_count(cls, server_id) -> int:
+
+        return len(cls.dbs[server_id])
+
+    @classmethod
+    def show_rank(cls, server_id, user_id) -> Union[int, None]:
+
+        target_server_db = cls.dbs[server_id]
+        return target_server_db.get_user_rank(user_id)
 
     @classmethod
     def load(cls):
@@ -337,9 +367,7 @@ class DataHandler:
 # --------------------------------------
 
 
-async def member_stat(context: Context, member_id: Union[Member, int] = 0):
-
-    logger.info("called, param: {} type: {}", member_id, type(member_id))
+def fetch_member(context, member_id):
 
     if not member_id:
         member: Member = context.author
@@ -350,6 +378,16 @@ async def member_stat(context: Context, member_id: Union[Member, int] = 0):
         member: Member = context.guild.get_member(member_id)
 
     if not member:
+        return None
+
+    return member
+
+
+async def member_stat(context: Context, member_id: Union[Member, int] = 0):
+
+    member = fetch_member(context, member_id)
+
+    if member is None:
         await context.reply("No such member exists!")
         return
 
@@ -369,6 +407,28 @@ async def member_stat(context: Context, member_id: Union[Member, int] = 0):
             context.channel.name,
             context.channel.id,
         )
+
+
+async def rank(context: Context, member_id: Union[Member, int] = 0):
+
+    member = fetch_member(context, member_id)
+
+    if member is None:
+        await context.reply("No such member exists!")
+        return
+
+    rank_ = DataHandler.show_rank(context.guild.id, member.id)
+
+    if rank_ is None:
+        await context.reply("Member has 0 comments!")
+        return
+
+    total = DataHandler.total_member_count(context.guild.id)
+
+    await context.reply(f"Your chat count rank is {rank_} out of {total}!")
+
+
+# --------------------------------------
 
 
 async def on_message_trigger(message: Message):
@@ -452,6 +512,9 @@ async def on_message_trigger(message: Message):
     )
 
 
+# --------------------------------------
+
+
 async def member_top(context: Context, results: int = 5):
 
     logger.info("called, param: {}", results)
@@ -496,11 +559,18 @@ async def member_top(context: Context, results: int = 5):
         )
 
 
+
+# --------------------------------------
+
+
 async def trigger_catchup(context: Context):
 
     logger.info("[{}] called", NAME)
 
     await DataHandler.catch_up(context.bot)
+
+
+# --------------------------------------
 
 
 class AssignCog(Cog):
@@ -538,6 +608,9 @@ __all__ = [
     EventRepresentation(on_message_trigger, "on_message"),
     CommandRepresentation(
         member_stat, name="stat", help="Shows your stats in this server."
+    ),
+    CommandRepresentation(
+        rank, name="rank", help="Shows your chat count rank."
     ),
     CommandRepresentation(
         member_top, name="top", help="Shows top N member with most chat count."
