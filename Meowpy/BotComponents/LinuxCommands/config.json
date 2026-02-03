@@ -6,7 +6,8 @@
       "CPU Model": "cat /proc/cpuinfo | awk -F : '/model name/ {print $2}' | head -1 | xargs",
       "Disk usage": "df -lh --total -x tmpfs | tail -1 | awk ' {print \"Total\", $2, \"| Used\", $3, \"| Free\", $4 }'",
       "ipv4 route count": "ip route | wc -l",
-      "ipv6 route count": "ip -6 route | wc -l"
+      "ipv6 route count": "ip -6 route | wc -l",
+      "Uptime": "uptime | awk '{ print $3 \" Days\" }'",
     },
     "command_whitelist": [426701488283189249, 86412226755334144, 757307928012259419, 415775449789235201, 779580904653848604]
   },
@@ -17,7 +18,8 @@
       "CPU Model": "cat /proc/cpuinfo | awk -F : '/model name/ {print $2}' | head -1 | xargs",
       "Disk usage": "df -lh --total -x tmpfs | tail -1 | awk ' {print \"Total\", $2, \"| Used\", $3, \"| Free\", $4 }'",
       "ipv4 route count": "ip route | wc -l",
-      "ipv6 route count": "ip -6 route | wc -l"
+      "ipv6 route count": "ip -6 route | wc -l",
+      "Uptime": "uptime | awk '{ print $3 \" Days\" }'"
     },
     "command_whitelist": [426701488283189249, 86412226755334144, 757307928012259419, 415775449789235201, 779580904653848604]
   }
