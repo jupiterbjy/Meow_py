@@ -8,7 +8,7 @@ from typing import Union, Dict, List
 import pytz
 from dateutil import parser
 from discord.ext.commands import Context
-from discord.ext.commands.errors import EmojiNotFound
+from discord.ext.commands.errors import EmojiNotFound, CommandInvokeError
 from discord import Embed, Member, Role, Asset, Emoji, errors, Message
 from loguru import logger
 
@@ -199,7 +199,7 @@ async def joined(context: Context, member_id: Union[Member, int] = 0):
         logger.warning("No permission to write to channel [{}] [ID {}].", context.channel.name, context.channel.id)
 
 
-async def sticker_info(context: Context, *emojis: Union[Emoji, str]):
+async def emoji_info(context: Context, *emojis: Union[Emoji, str]):
     # ref from https://stackoverflow.com/questions/54937474/
 
     logger.info("called, param: {}", emojis)
@@ -224,11 +224,11 @@ async def sticker_info(context: Context, *emojis: Union[Emoji, str]):
         await context.reply(embed=embed)
 
 
-async def sticker_info_error(context: Context, error):
+async def emoji_info_error(context: Context, error):
 
-    logger.warning("Got error {}", error)
+    logger.warning("Got error (Type: {}) {}", type(error).__name__, error)
 
-    if isinstance(error, EmojiNotFound):
+    if isinstance(error, (EmojiNotFound, CommandInvokeError)):
         await context.reply("I can't find such emoji in this server!")
         return
 
@@ -249,11 +249,11 @@ __all__ = [
         name="tzconv",
         help="<local_timezone> <destination_timezone> <time_str}>",
     ),
-    CommandRepresentation(
-        echo,
-        name="echo",
-        help="Echo back your writings.",
-    ),
+    # CommandRepresentation(
+    #     echo,
+    #     name="echo",
+    #     help="Echo back your writings.",
+    # ),
     CommandRepresentation(
         countdown,
         name="countdown",
@@ -265,9 +265,9 @@ __all__ = [
         help="Show your join dates. Pass Member ID to get that member's dates instead.",
     ),
     CommandRepresentation(
-        sticker_info,
-        err_handler=sticker_info_error,
-        name="stickerinfo",
+        emoji_info,
+        err_handler=emoji_info_error,
+        name="emojiinfo",
         help="Shows debugging data of the sticker."
     )
 ]
