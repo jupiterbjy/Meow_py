@@ -6,7 +6,7 @@ Auto assign module.
 import pathlib
 import json
 import sqlite3
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Dict, Union, Any, AsyncGenerator, Tuple, List
 
 from discord.ext import tasks
@@ -87,19 +87,19 @@ def discord_stat_embed_gen(member: Member):
 
     embed.add_field(
         name="Discord joined",
-        value=f"{discord_join.days}d {discord_join.seconds // 3600}hr",
+        value=f"{discord_join.days}d {discord_join.seconds // 3600}hr {(discord_join.seconds % 3600) // 60}min",
         inline=True,
     )
     embed.add_field(
         name="Server joined",
-        value=f"{member_join.days}d {member_join.seconds // 3600}hr",
+        value=f"{member_join.days}d {member_join.seconds // 3600}hr {(member_join.seconds % 3600) // 60}min",
         inline=True,
     )
 
     if premium:
         embed.add_field(
             name="Boost for",
-            value=f"{premium.days}d {premium.seconds // 3600}hr",
+            value=f"{premium.days}d {premium.seconds // 3600}hr {(premium.seconds % 3600) // 60}min",
             inline=True,
         )
 
@@ -161,7 +161,7 @@ class DBWrapper:
 
     def count_up(self, message: Message):
         user_id = message.author.id
-        timestamp = message.created_at.timestamp()
+        timestamp = message.created_at.replace(tzinfo=timezone.utc).timestamp()
 
         if self.user_exists(user_id):
             self.con.execute(
@@ -184,7 +184,7 @@ class DBWrapper:
         return output if output else 0
 
     def get_last_datetime(self) -> datetime:
-        return datetime.fromtimestamp(self.get_last_timestamp())
+        return datetime.fromtimestamp(self.get_last_timestamp(), tz=timezone.utc).replace(tzinfo=None)
 
     def get_user_counter(self, user_id: int) -> int:
         if self.user_exists(user_id):
@@ -330,7 +330,7 @@ class DataHandler:
             if not timestamp:
                 time_ = server.created_at
             else:
-                time_ = datetime.fromtimestamp(timestamp)
+                time_ = datetime.fromtimestamp(timestamp, tz=timezone.utc).replace(tzinfo=None)
 
             logger.debug(
                 "[{}] Catching up server '{}', from ts {}", NAME, server, timestamp
