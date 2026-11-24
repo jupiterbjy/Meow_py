@@ -519,8 +519,8 @@ async def member_top(context: Context, results: int = 5):
 
     logger.info("called, param: {}", results)
 
-    if results > 10:
-        results = 10
+    if results > 20:
+        results = 20
 
     if results < 1:
         results = 1
