@@ -304,9 +304,11 @@ class DataHandler:
 
     @classmethod
     def close(cls):
-
         for server_id, db_ in cls.dbs.items():
             db_.close()
+
+        # drop ref to prevent future unintended GC
+        cls.dbs.clear()
 
     @classmethod
     async def catch_up(cls, bot: Bot):
@@ -598,9 +600,6 @@ class AssignCog(Cog):
     async def load(self):
         logger.info("[AssignCog] Loading up stored data.")
         DataHandler.load()
-
-    def __del__(self):
-        DataHandler.close()
 
 
 __all__ = [
