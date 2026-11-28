@@ -1,3 +1,2 @@
-/YoutubeStreamStatLogger/Records/
-/YoutubeStreamStatLogger/api_key
-/Meowpy_telegram/dev_config.json
+.idea/
+__pycache__
