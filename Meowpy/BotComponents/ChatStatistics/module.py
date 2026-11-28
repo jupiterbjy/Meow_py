@@ -288,6 +288,7 @@ class DataHandler:
         cls.catchup_running = True
         logger.info("[{}] Catching up chat statistics.", NAME)
 
+        # rip indents
         try:
             for guild in bot.guilds:
                 db = cls.get_db(guild.id)
@@ -311,6 +312,15 @@ class DataHandler:
                             channel.name,
                             channel.id,
                             err,
+                        )
+
+                    except Exception as err:
+                        logger.exception(
+                            "[{}] Failed to catch up channel '{}' - ID: {} ({})",
+                            NAME,
+                            channel.name,
+                            channel.id,
+                            err
                         )
 
         finally:
